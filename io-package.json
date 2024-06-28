@@ -1,0 +1,96 @@
+{
+	"common": {
+		"name": "iobapp",
+		"version": "0.0.1",
+		"news": {
+			"0.0.1": {
+				"en": "initial release",
+				"de": "Erstveröffentlichung",
+				"ru": "Начальная версия",
+				"pt": "lançamento inicial",
+				"nl": "Eerste uitgave",
+				"fr": "Première version",
+				"it": "Versione iniziale",
+				"es": "Versión inicial",
+				"pl": "Pierwsze wydanie",
+				"uk": "Початкова версія",
+				"zh-cn": "首次出版"
+			}
+		},
+		"title": "integration for iOS app",
+		"titleLang": {
+			"en": "integration for iOS app",
+			"de": "Integration für iOS-App",
+			"ru": "интеграция с приложением iOS",
+			"pt": "integração para aplicativo iOS",
+			"nl": "integratie voor iOS-app",
+			"fr": "intégration pour l'application iOS",
+			"it": "integrazione per l'app iOS",
+			"es": "integración para la aplicación iOS",
+			"pl": "integracja z aplikacją na iOS",
+			"uk": "інтеграція для програми iOS",
+			"zh-cn": "iOS 应用程序集成"
+		},
+		"desc": {
+			"en": "This adapter integrates an iOS app with IoBroker, providing REST endpoints for device data.",
+			"de": "Dieser Adapter integriert eine iOS-App mit IoBroker und stellt REST-Endpunkte für Gerätedaten bereit.",
+			"ru": "Этот адаптер интегрирует приложение iOS с IoBroker, предоставляя конечные точки REST для данных устройства.",
+			"pt": "Este adaptador integra um aplicativo iOS com IoBroker, fornecendo endpoints REST para dados do dispositivo.",
+			"nl": "Deze adapter integreert een iOS-app met IoBroker en biedt REST-eindpunten voor apparaatgegevens.",
+			"fr": "Cet adaptateur intègre une application iOS avec IoBroker, fournissant des points de terminaison REST pour les données de l'appareil.",
+			"it": "Questo adattatore integra un'app iOS con IoBroker, fornendo endpoint REST per i dati del dispositivo.",
+			"es": "Este adaptador integra una aplicación de iOS con IoBroker, proporcionando puntos finales REST para los datos del dispositivo.",
+			"pl": "Ten adapter integruje aplikację iOS z IoBrokerem, zapewniając punkty końcowe REST dla danych urządzenia.",
+			"uk": "Цей адаптер інтегрує програму iOS з IoBroker, надаючи кінцеві точки REST для даних пристрою.",
+			"zh-cn": "该适配器将 iOS 应用程序与 IoBroker 集成，为设备数据提供 REST 端点。"
+		},
+		"authors": [
+			"DNAngelX <stolly82@web.de>"
+		],
+		"keywords": [
+			"ios",
+			"ipad",
+			"iphone",
+			"tracking",
+			"loction"
+		],
+		"license": "MIT",
+		"licenseInformation": {
+			"type": "free",
+			"license": "MIT"
+		},
+		"platform": "Javascript/Node.js",
+		"main": "main.js",
+		"icon": "iobapp.png",
+		"enabled": true,
+		"extIcon": "https://raw.githubusercontent.com/DNAngelX/ioBroker.iobapp/main/admin/iobapp.png",
+		"readme": "https://github.com/DNAngelX/ioBroker.iobapp/blob/main/README.md",
+		"loglevel": "debug",
+		"tier": 3,
+		"mode": "daemon",
+		"type": "protocols",
+		"compact": true,
+		"connectionType": "local",
+		"dataSource": "poll",
+		"adminUI": {
+			"config": "materialize"
+		},
+		"eraseOnUpload": true,
+		"dependencies": [
+			{
+				"js-controller": ">=3.3.22"
+			}
+		],
+		"globalDependencies": [
+			{
+				"admin": ">=5.0.0"
+			}
+		]
+	},
+	"native": {
+		"option1": true,
+		"option2": "42"
+	},
+	"objects": [],
+	"instanceObjects": []
+}

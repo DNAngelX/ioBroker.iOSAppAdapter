@@ -1,0 +1,124 @@
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="../../lib/css/themes/jquery-ui/redmond/jquery-ui.min.css"/>
+    <link rel="stylesheet" type="text/css" href="../../css/adapter.css"/>
+    <link rel="stylesheet" type="text/css" href="../../lib/css/materialize.css">
+    <script type="text/javascript" src="../../lib/js/jquery-1.11.1.min.js"></script>
+    <script type="text/javascript" src="../../socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="../../lib/js/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="../../js/translate.js"></script>
+    <script type="text/javascript" src="../../js/adapter-settings.js"></script>
+    <script type="text/javascript" src="words.js"></script>
+
+    <style>
+        .container {
+            font-family: Arial, sans-serif;
+            background-color: #f7f9fc;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+            margin: 20px auto;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .form-group input {
+            width: calc(100% - 10px);
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .alert {
+            display: none;
+            margin-top: 20px;
+            padding: 10px;
+            color: #fff;
+            background-color: #28a745;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>iOS App Settings</h1>
+        <form id="adapter-settings">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" class="form-control value" id="username" name="username">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" class="form-control value" id="password" name="password">
+            </div>
+            <div class="form-group">
+                <label for="port">Port:</label>
+                <input type="number" class="form-control value" id="port" name="port" value="8082">
+            </div>
+        </form>
+        <div class="alert" id="alert">Settings saved</div>
+    </div>
+    <script type="text/javascript">
+        'use strict';
+
+        function load(settings, onChange) {
+            if (!settings) return;
+
+            // Load and populate the settings if they exist
+            $('#username').val(settings.username || '');
+            $('#password').val(settings.password || '');
+            $('#port').val(settings.port || 8082);
+
+            // Call onChange when the values change
+            $('.value').change(function () {
+                onChange();
+            }).keyup(function () {
+                onChange();
+            });
+
+            onChange(false); // signal that initial load is done
+        }
+
+        function save(callback) {
+            var obj = {};
+
+            $('.value').each(function () {
+                var $this = $(this);
+                if ($this.attr('type') === 'checkbox') {
+                    obj[$this.attr('id')] = $this.prop('checked');
+                } else {
+                    obj[$this.attr('id')] = $this.val();
+                }
+            });
+
+            obj.port = parseInt(obj.port, 10) || 0;
+
+            callback(obj);
+            $('#alert').show().delay(3000).fadeOut();
+        }
+
+        $(document).ready(function() {
+            // Call load function with initial settings and onChange callback
+            socket.emit('getSettings', function (settings) {
+                load(settings, function () {
+                    // Handle changes, if any
+                    save(function(obj) {
+                        socket.emit('setSettings', obj, function () {
+                            console.log('Settings saved:', obj);
+                        });
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
