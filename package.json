@@ -1,6 +1,6 @@
 {
   "name": "iobroker.iobapp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "This adapter integrates an iOS app with IoBroker, providing REST endpoints for device data.",
   "author": {
     "name": "DNAngelX",
@@ -29,8 +29,8 @@
   },
   "dependencies": {
     "@iobroker/adapter-core": "^3.1.6",
-        "express": "^4.17.1",
-        "body-parser": "^1.19.0"
+    "express": "^4.17.1",
+    "body-parser": "^1.19.0"
   },
   "devDependencies": {
     "@alcalzone/release-script": "^3.7.0",
