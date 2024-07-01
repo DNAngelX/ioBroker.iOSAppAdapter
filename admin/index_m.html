@@ -61,8 +61,12 @@
                 <input type="password" class="form-control value" id="password" name="password">
             </div>
             <div class="form-group">
-                <label for="port">Port:</label>
-                <input type="number" class="form-control value" id="port" name="port" value="8082">
+                <label for="restPort">Port REST:</label>
+                <input type="number" class="form-control value" id="restPort" name="restPort" value="8082">
+            </div>
+            <div class="form-group">
+                <label for="wsPort">Port Websockets:</label>
+                <input type="number" class="form-control value" id="wsPort" name="wsPort" value="8083">
             </div>
         </form>
         <div class="alert" id="alert">Settings saved</div>
@@ -76,7 +80,8 @@
             // Load and populate the settings if they exist
             $('#username').val(settings.username || '');
             $('#password').val(settings.password || '');
-            $('#port').val(settings.port || 8082);
+            $('#restPort').val(settings.restPort || 8082);
+            $('#wsPort').val(settings.wsPort || 8083);
 
             // Call onChange when the values change
             $('.value').change(function () {
@@ -100,7 +105,8 @@
                 }
             });
 
-            obj.port = parseInt(obj.port, 10) || 0;
+            obj.restPort = parseInt(obj.restPort, 10) || 0;
+            obj.wsPort = parseInt(obj.wsPort, 10) || 0;
 
             callback(obj);
             $('#alert').show().delay(3000).fadeOut();
