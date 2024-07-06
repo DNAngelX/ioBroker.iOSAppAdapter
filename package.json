@@ -1,6 +1,6 @@
 {
   "name": "iobroker.iobapp",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "This adapter integrates an iOS app with IoBroker, providing REST endpoints for device data.",
   "author": {
     "name": "DNAngelX",
@@ -76,10 +76,10 @@
     "main.js"
   ],
   "scripts": {
-    "prebuild": "rimraf admin/build",
+    //"prebuild": "rimraf admin/build",
     "build": "build-adapter react",
     "watch": "build-adapter react --watch",
-    "prebuild:react": "rimraf admin/build",
+    //"prebuild:react": "rimraf admin/build",
     "build:react": "build-adapter react",
     "watch:react": "build-adapter react --watch",
     "test:js": "mocha --config test/mocharc.custom.json \"{!(node_modules|test)/**/*.test.js,*.test.js,test/**/test!(PackageFiles|Startup).js}\"",
