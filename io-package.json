@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "news": {
+      "0.0.6": {
+        "en": "integration checks: true",
+        "de": "integrationskontrollen: wahr",
+        "ru": "интеграционные проверки: истинно",
+        "pt": "verificações de integração: verdadeiro",
+        "nl": "integratiecontroles: waar",
+        "fr": "contrôles d'intégration: vrai",
+        "it": "controlli di integrazione: vero",
+        "es": "cheques de integración: verdadero",
+        "pl": "kontrole integracji: prawdziwe",
+        "uk": "перевірка інтеграції: true",
+        "zh-cn": "整合检查:真实"
+      },
       "0.0.5": {
         "en": "bugfix ws",
         "de": "fehlerbehebung ws",
