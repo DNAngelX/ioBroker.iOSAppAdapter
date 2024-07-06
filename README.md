@@ -112,6 +112,9 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 	Placeholder for the next version (at the beginning of the line):
 	### **WORK IN PROGRESS**
 -->
+### **WORK IN PROGRESS**
+* (DNAngelX) integration checks: true
+
 ### 0.0.5 (2024-07-06)
 * (DNAngelX) bugfix ws
 
