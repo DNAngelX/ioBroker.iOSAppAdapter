@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "news": {
+      "0.0.4": {
+        "en": "bugfix ws",
+        "de": "fehlerbehebung ws",
+        "ru": "bugfix w",
+        "pt": "ws de correcção de bugs",
+        "nl": "bugfix ws",
+        "fr": "bugfix ws",
+        "it": "bugfix ws",
+        "es": "bugfix ws",
+        "pl": "bugfix ws",
+        "uk": "бетмен",
+        "zh-cn": "错误修正ws"
+      },
       "0.0.3": {
         "en": "bugfix ports",
         "de": "bugfix-ports",
