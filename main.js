@@ -5,6 +5,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const WebSocket = require('ws');
 
+
 class Iobapp extends utils.Adapter {
     constructor(options) {
         super({
