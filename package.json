@@ -1,6 +1,6 @@
 {
   "name": "iobroker.iobapp",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "This adapter integrates an iOS app with IoBroker, providing REST endpoints for device data.",
   "author": {
     "name": "DNAngelX",

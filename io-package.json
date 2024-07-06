@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "news": {
+      "0.0.3": {
+        "en": "bugfix ports",
+        "de": "bugfix-ports",
+        "ru": "порты исправления ошибок",
+        "pt": "portas do bugfix",
+        "nl": "bugfix poorten",
+        "fr": "ports de correction de bugs",
+        "it": "porte bugfix",
+        "es": "puertos bugfix",
+        "pl": "porty bugfix",
+        "uk": "порти помилок",
+        "zh-cn": "错误修正端口"
+      },
       "0.0.2": {
         "en": "initial release",
         "de": "erstausstrahlung",
