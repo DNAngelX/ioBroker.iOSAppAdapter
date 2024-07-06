@@ -22,6 +22,8 @@ class Iobapp extends utils.Adapter {
         this.messageQueue = [];
     }
 
+
+
     async onReady() {
         this.log.debug('Adapter ready: Initializing express app.');
         this.app.use(bodyParser.json({
@@ -47,8 +49,8 @@ class Iobapp extends utils.Adapter {
         this.app.get('/tagsTrigger', this.handleTagsTrigger.bind(this));
         this.app.post('/tagsTrigger', this.handleCreateTag.bind(this));
 
-        const restPort = this.config.restPort || 8082;
-        const wsPort = this.config.wsPort || 8083;
+        const restPort = this.config.restPort || 9191;
+        const wsPort = this.config.wsPort || 9192;
         
         this.server = this.app.listen(restPort, () => {
             this.log.info(`REST server listening on port ${restPort}`);
