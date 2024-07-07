@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.0.6",
+    "version": "0.1.0",
     "news": {
+      "0.1.0": {
+        "en": "Apple Push Service APN added",
+        "de": "Apple Push Service APN hinzugefügt",
+        "ru": "Apple Push Service добавлена",
+        "pt": "Apple Push Service APN adicionado",
+        "nl": "Apple Push Service APN toegevoegd",
+        "fr": "Apple Push Service APN ajouté",
+        "it": "Apple Push Service APN aggiunto",
+        "es": "Apple Push Service APN añadido",
+        "pl": "Apple Push Service APN dodany",
+        "uk": "Apple Push Service APN додано",
+        "zh-cn": "添加 Apple Push 服务 APN"
+      },
       "0.0.6": {
         "en": "integration checks: true",
         "de": "integrationskontrollen: wahr",
