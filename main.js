@@ -412,35 +412,107 @@ class Iobapp extends utils.Adapter {
         this.log.info(`WebSocket server listening on port ${wsPort}`);
     }
 
-    async handleAPNMessage(id) {
-        const [namespace, person, device] = id.split('.').slice(2, 5);
-        const basePath = `${this.namespace}.person.${person}.${device}.messages`;
-
+    async generatePayload(id) {
+        const [namespace, person, device, ...rest] = id.split('.').slice(2);
+        let basePath;
+    
+        if (device === 'messages') {
+            basePath = `${this.namespace}.person.${person}.messages`;
+        } else {
+            basePath = `${this.namespace}.person.${person}.${device}.messages`;
+        }
+    
         try {
-            const tokenState = await this.getStateAsync(`${this.namespace}.person.${person}.${device}.device_token`);
-            const payloadState = await this.getStateAsync(`${basePath}.payload`);
-
-            const token = tokenState ? tokenState.val : null;
-            const payload = payloadState ? payloadState.val : null;
-
-            if (token && payload) {
-                const message = { type: 'notification', token, payload };
-                if (this.wsServer && this.wsServer.clients && this.wsServer.clients.size > 0) {
-                    this.sendMessageToClients(message);
-                } else {
-                    this.messageQueue.push(message);
-                    this.log.warn(`WebSocket not connected, queuing message for ${person}'s ${device}`);
-                }
-
-                // Nach dem Senden der Nachricht den Payload leeren
-                await this.setStateAsync(`${basePath}.payload`, '', true);
-            } else {
-                this.log.warn(`Cannot send APN message, missing token or payload for ${person}'s ${device}`);
-            }
+            const titleState = await this.getStateAsync(`${basePath}.title`);
+            const subtitleState = await this.getStateAsync(`${basePath}.subtitle`);
+            const bodyState = await this.getStateAsync(`${basePath}.body`);
+            const bodyHtmlState = await this.getStateAsync(`${basePath}.body-html`);
+            const soundState = await this.getStateAsync(`${basePath}.sound`);
+            const mediaUrlState = await this.getStateAsync(`${basePath}.media-url`);
+            const imageUrlState = await this.getStateAsync(`${basePath}.image-url`);
+            const videoUrlState = await this.getStateAsync(`${basePath}.video-url`);
+    
+            const title = titleState ? titleState.val : '';
+            const subtitle = subtitleState ? subtitleState.val : '';
+            const body = bodyState ? bodyState.val : '';
+            const bodyHtml = bodyHtmlState ? bodyHtmlState.val : '';
+            const sound = soundState ? soundState.val : '';
+            const mediaUrl = mediaUrlState ? mediaUrlState.val : '';
+            const imageUrl = imageUrlState ? imageUrlState.val : '';
+            const videoUrl = videoUrlState ? videoUrlState.val : '';
+    
+            const notification = {
+                aps: {
+                    alert: {
+                        title: title || undefined,
+                        subtitle: subtitle || undefined,
+                        body: body || undefined,
+                    },
+                    sound: sound || undefined,
+                },
+                'body-html': bodyHtml || undefined,
+                'media-url': mediaUrl || undefined,
+                'image-url': imageUrl || undefined,
+                'video-url': videoUrl || undefined
+            };
+    
+            // Remove undefined properties
+            Object.keys(notification).forEach(key => notification[key] === undefined && delete notification[key]);
+            Object.keys(notification.aps).forEach(key => notification.aps[key] === undefined && delete notification.aps[key]);
+            if (Object.keys(notification.aps.alert).length === 0) delete notification.aps.alert;
+    
+            const payload = JSON.stringify(notification);
+            await this.setStateAsync(`${basePath}.payload`, payload, true);
+            this.log.debug(`Payload generated for ${person === 'messages' ? 'general' : `${person}'s ${device}`}: ${payload}`);
         } catch (err) {
-            this.log.error(`Error handling APN message for ${person}'s ${device}: ${err.message}`);
+            this.log.error(`Error generating payload for ${person === 'messages' ? 'general' : `${person}'s ${device}`}: ${err.message}`);
         }
     }
+    async handleAPNMessage(id) {
+        const [namespace, person, device, ...rest] = id.split('.').slice(2);
+        let basePath, tokenStates;
+    
+        if (device === 'messages') {
+            basePath = `${this.namespace}.person.${person}.messages`;
+            tokenStates = await this.getStatesAsync(`${this.namespace}.person.${person}.*.device_token`);
+        } else {
+            basePath = `${this.namespace}.person.${person}.${device}.messages`;
+            tokenStates = {
+                [`${this.namespace}.person.${person}.${device}.device_token`]: await this.getStateAsync(`${this.namespace}.person.${person}.${device}.device_token`)
+            };
+        }
+    
+        try {
+            const payloadState = await this.getStateAsync(`${basePath}.payload`);
+            const payload = payloadState ? payloadState.val : null;
+    
+            if (payload) {
+                for (const [tokenId, tokenObj] of Object.entries(tokenStates)) {
+                    const token = tokenObj ? tokenObj.val : null;
+                    if (token) {
+                        const message = { type: 'notification', token, payload };
+                        if (this.wsServer && this.wsServer.clients && this.wsServer.clients.size > 0) {
+                            this.sendMessageToClients(message);
+                        } else {
+                            this.messageQueue.push(message);
+                            this.log.warn(`WebSocket not connected, queuing message for ${tokenId}`);
+                        }
+                    } else {
+                        this.log.warn(`Ignoring device with missing token for ${tokenId}`);
+                    }
+                }
+                await this.setStateAsync(`${basePath}.payload`, '', true);
+            } else {
+                this.log.warn(`Cannot send APN message, missing payload for ${basePath}`);
+            }
+        } catch (err) {
+            this.log.error(`Error handling APN message for ${person === 'messages' ? 'general' : `${person}'s ${device}`}: ${err.message}`);
+        }
+    }
+    
+            
+        
+    
 
     sendMessageToClients(message) {
         this.wsServer.clients.forEach(client => {
@@ -463,220 +535,52 @@ class Iobapp extends utils.Adapter {
             }
         }
     }
-
-    async generatePayload(id) {
-        const [namespace, person, device] = id.split('.').slice(2, 5);
-        const basePath = `${this.namespace}.person.${person}.${device}.messages`;
-
-        try {
-            const titleState = await this.getStateAsync(`${basePath}.title`);
-            const subtitleState = await this.getStateAsync(`${basePath}.subtitle`);
-            const bodyState = await this.getStateAsync(`${basePath}.body`);
-            const soundState = await this.getStateAsync(`${basePath}.sound`);
-            const badgeState = await this.getStateAsync(`${basePath}.badge`);
-            const categoryState = await this.getStateAsync(`${basePath}.category`);
-            const contentAvailableState = await this.getStateAsync(`${basePath}.content-available`);
-            const mediaUrlState = await this.getStateAsync(`${basePath}.media-url`);
-            const imageUrlState = await this.getStateAsync(`${basePath}.image-url`);
-            const videoUrlState = await this.getStateAsync(`${basePath}.video-url`);
-
-            const title = titleState ? titleState.val : '';
-            const subtitle = subtitleState ? subtitleState.val : '';
-            const body = bodyState ? bodyState.val : '';
-            const sound = soundState ? soundState.val : '';
-            const badge = badgeState ? badgeState.val : 0;
-            const category = categoryState ? categoryState.val : '';
-            const contentAvailable = contentAvailableState ? contentAvailableState.val : 0;
-            const mediaUrl = mediaUrlState ? mediaUrlState.val : '';
-            const imageUrl = imageUrlState ? imageUrlState.val : '';
-            const videoUrl = videoUrlState ? videoUrlState.val : '';
-
-            const notification = {
-                aps: {
-                    alert: {},
-                    sound: sound || undefined,
-                    badge: badge || undefined,
-                    category: category || undefined,
-                    'content-available': contentAvailable || undefined
-                },
-                'media-url': mediaUrl || undefined,
-                'image-url': imageUrl || undefined,
-                'video-url': videoUrl || undefined
-            };
-
-            if (title) notification.aps.alert.title = title;
-            if (subtitle) notification.aps.alert.subtitle = subtitle;
-            if (body) notification.aps.alert.body = body;
-
-            const payload = JSON.stringify(notification);
-            await this.setStateAsync(`${basePath}.payload`, payload, true);
-            this.log.debug(`Payload generated for ${person}'s ${device}: ${payload}`);
-        } catch (err) {
-            this.log.error(`Error generating payload for ${person}'s ${device}: ${err.message}`);
+    
+    async createAPNObjects(person, device) {
+        const basePaths = [
+            `${this.namespace}.person.${person}.${device}.messages`,
+            `${this.namespace}.person.${person}.messages`        ];
+    
+        const commonStates = [
+            { id: 'send', name: 'Send', type: 'boolean', role: 'button', read: false, write: true },
+            { id: 'payload', name: 'Payload', type: 'string', role: 'text', read: true, write: true },
+            { id: 'title', name: 'Nachrichtentitel', type: 'string', role: 'text', read: true, write: true },
+            { id: 'subtitle', name: 'Nachrichtensubtitle', type: 'string', role: 'text', read: true, write: true },
+            { id: 'body', name: 'Nachrichtentext', type: 'string', role: 'text', read: true, write: true },
+            { id: 'body-html', name: 'Nachrichtentext HTML', type: 'string', role: 'text', read: true, write: true },
+            { id: 'sound', name: 'Sound', type: 'string', role: 'text', read: true, write: true, states: { '': 'Kein', 'default': 'Default' } },
+            { id: 'media-url', name: 'Media URL', type: 'string', role: 'text', read: true, write: true },
+            { id: 'image-url', name: 'Image URL', type: 'string', role: 'text', read: true, write: true },
+            { id: 'video-url', name: 'Video URL', type: 'string', role: 'text', read: true, write: true }
+        ];
+    
+        for (const basePath of basePaths) {
+            await this.setObjectNotExistsAsync(basePath, {
+                type: 'channel',
+                common: { name: basePath.includes('messages') ? 'General Messages' : 'Messages' },
+                native: {},
+            });
+    
+            for (const state of commonStates) {
+                await this.setObjectNotExistsAsync(`${basePath}.${state.id}`, {
+                    type: 'state',
+                    common: {
+                        name: state.name,
+                        type: state.type,
+                        role: state.role,
+                        read: state.read,
+                        write: state.write,
+                        states: state.states
+                    },
+                    native: {},
+                });
+            }
         }
     }
-
-    async createAPNObjects(person, device) {
-        const basePath = `${this.namespace}.person.${person}.${device}.messages`;
-
-        await this.setObjectNotExistsAsync(basePath, {
-            type: 'channel',
-            common: { name: 'Messages' },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.send`, {
-            type: 'state',
-            common: {
-                name: 'Send',
-                type: 'boolean',
-                role: 'button',
-                read: false,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.payload`, {
-            type: 'state',
-            common: {
-                name: 'Payload',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.title`, {
-            type: 'state',
-            common: {
-                name: 'Nachrichtentitel',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.subtitle`, {
-            type: 'state',
-            common: {
-                name: 'Nachrichtensubtitle',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.body`, {
-            type: 'state',
-            common: {
-                name: 'Nachrichtentext',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.sound`, {
-            type: 'state',
-            common: {
-                name: 'Sound',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-                states: {
-                    '': 'Kein',
-                    'default': 'Default'
-                }
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.badge`, {
-            type: 'state',
-            common: {
-                name: 'Badge',
-                type: 'number',
-                role: 'value',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.category`, {
-            type: 'state',
-            common: {
-                name: 'Category',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-                states: {
-                    '': 'Kein',
-                    'INVITE_CATEGORY': 'INVITE_CATEGORY'
-                }
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.content-available`, {
-            type: 'state',
-            common: {
-                name: 'Content Available',
-                type: 'number',
-                role: 'value',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.media-url`, {
-            type: 'state',
-            common: {
-                name: 'Media URL',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.image-url`, {
-            type: 'state',
-            common: {
-                name: 'Image URL',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-
-        await this.setObjectNotExistsAsync(`${basePath}.video-url`, {
-            type: 'state',
-            common: {
-                name: 'Video URL',
-                type: 'string',
-                role: 'text',
-                read: true,
-                write: true,
-            },
-            native: {},
-        });
-    }
+    
+    
+    
+    
 }
 
 if (module.parent) {
