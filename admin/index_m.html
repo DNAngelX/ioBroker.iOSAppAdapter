@@ -54,20 +54,17 @@
         <form id="adapter-settings">
             <div class="form-group">
                 <label for="username">Username:</label>
-                <input type="text" class="form-control value" id="username" name="username">
+                <input type="text" class="form-control value" id="username" name="username" required>
             </div>
             <div class="form-group">
                 <label for="password">Password:</label>
-                <input type="password" class="form-control value" id="password" name="password">
-            </div>
-            <div class="form-group">
-                <label for="restPort">Port REST:</label>
-                <input type="number" class="form-control value" id="restPort" name="restPort" value="8082">
+                <input type="password" class="form-control value" id="password" name="password" required>
             </div>
             <div class="form-group">
                 <label for="wsPort">Port Websockets:</label>
-                <input type="number" class="form-control value" id="wsPort" name="wsPort" value="8083">
+                <input type="number" class="form-control value" id="wsPort" name="wsPort" value="9192">
             </div>
+            <button type="submit">Save</button>
         </form>
         <div class="alert" id="alert">Settings saved</div>
     </div>
@@ -80,8 +77,7 @@
             // Load and populate the settings if they exist
             $('#username').val(settings.username || '');
             $('#password').val(settings.password || '');
-            $('#restPort').val(settings.restPort || 8082);
-            $('#wsPort').val(settings.wsPort || 8083);
+            $('#wsPort').val(settings.wsPort || 9192);
 
             // Call onChange when the values change
             $('.value').change(function () {
@@ -105,8 +101,12 @@
                 }
             });
 
-            obj.restPort = parseInt(obj.restPort, 10) || 0;
             obj.wsPort = parseInt(obj.wsPort, 10) || 0;
+
+            if (!obj.username || !obj.password) {
+                alert('Username and Password are required.');
+                return;
+            }
 
             callback(obj);
             $('#alert').show().delay(3000).fadeOut();
@@ -117,9 +117,12 @@
             socket.emit('getSettings', function (settings) {
                 load(settings, function () {
                     // Handle changes, if any
-                    save(function(obj) {
-                        socket.emit('setSettings', obj, function () {
-                            console.log('Settings saved:', obj);
+                    $('#adapter-settings').submit(function(event) {
+                        event.preventDefault(); // Prevent default form submission
+                        save(function(obj) {
+                            socket.emit('setSettings', obj, function () {
+                                console.log('Settings saved:', obj);
+                            });
                         });
                     });
                 });
