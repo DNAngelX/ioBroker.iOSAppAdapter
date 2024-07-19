@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "news": {
+      "0.2.0": {
+        "en": "Change Rest 2 Websockets\nImprovements in Cache Messages etc.",
+        "de": "Rest ändern 2 Websockets\nVerbesserungen in Cache-Nachrichten etc.",
+        "ru": "Переместить 2 Websockets\nСовершенствование сообщений о кэше и т.д.",
+        "pt": "Alterar Resto 2 Websockets\nMelhorias em Cache Mensagens etc.",
+        "nl": "Rest 2 Websockets wijzigen\nVerbeteringen in Cache Berichten etc.",
+        "fr": "Changer le repos 2 Websockets\nAmélioration des messages de cache, etc.",
+        "it": "Cambiare Riposo 2 Websockets\nMiglioramenti nei messaggi Cache ecc.",
+        "es": "Cambiar el descanso 2 Websockets\nMejoras en los Mensajes de Caché, etc.",
+        "pl": "Zmiana odpoczynku 2 gniazda internetowe\nUlepszenia wiadomości Cache itp.",
+        "uk": "Зміна відпочинку 2 Websockets\nУдосконалення в кеш повідомленнях тощо.",
+        "zh-cn": "更改休息 2 Websockets\n缓存消息等的改进 ."
+      },
       "0.1.0": {
         "en": "Apple Push Service APN added",
         "de": "Apple Push Service APN hinzugefügt",
@@ -80,19 +93,6 @@
         "pl": "początkowe zwolnienie",
         "uk": "початковий реліз",
         "zh-cn": "初步释放"
-      },
-      "0.0.1": {
-        "en": "initial release",
-        "de": "Erstveröffentlichung",
-        "ru": "Начальная версия",
-        "pt": "lançamento inicial",
-        "nl": "Eerste uitgave",
-        "fr": "Première version",
-        "it": "Versione iniziale",
-        "es": "Versión inicial",
-        "pl": "Pierwsze wydanie",
-        "uk": "Початкова версія",
-        "zh-cn": "首次出版"
       }
     },
     "title": "integration for iOS app",

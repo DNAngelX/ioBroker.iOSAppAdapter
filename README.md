@@ -112,10 +112,9 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 	Placeholder for the next version (at the beginning of the line):
 	### **WORK IN PROGRESS**
 -->
-
-### **WORK IN PROGRESS**
+### 0.2.0 (2024-07-19)
 * (DNAngelX) Change Rest 2 Websockets
-* Improvements in Cache Messages etc. 
+* Improvements in Cache Messages etc.
 
 ### 0.1.0 (2024-07-07)
 * (DNAngelX) Apple Push Service APN added
