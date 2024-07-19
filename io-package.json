@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "news": {
+      "0.2.1": {
+        "en": "UI Fix",
+        "de": "UI Fix",
+        "ru": "UI Fix",
+        "pt": "UI Fix",
+        "nl": "UI Fix",
+        "fr": "Correction de l'UI",
+        "it": "UI fix",
+        "es": "UI Fix",
+        "pl": "Interfejs fix",
+        "uk": "UI Фіксація",
+        "zh-cn": "UI 修正"
+      },
       "0.2.0": {
         "en": "Change Rest 2 Websockets\nImprovements in Cache Messages etc.",
         "de": "Rest ändern 2 Websockets\nVerbesserungen in Cache-Nachrichten etc.",
@@ -80,19 +93,6 @@
         "pl": "porty bugfix",
         "uk": "порти помилок",
         "zh-cn": "错误修正端口"
-      },
-      "0.0.2": {
-        "en": "initial release",
-        "de": "erstausstrahlung",
-        "ru": "первоначальный выпуск",
-        "pt": "lançamento inicial",
-        "nl": "eerste release",
-        "fr": "libération initiale",
-        "it": "rilascio iniziale",
-        "es": "liberación inicial",
-        "pl": "początkowe zwolnienie",
-        "uk": "початковий реліз",
-        "zh-cn": "初步释放"
       }
     },
     "title": "integration for iOS app",
