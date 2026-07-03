@@ -3,12 +3,14 @@ process.on("unhandledRejection", (e) => {
 	throw e;
 });
 
-// enable the should interface with sinon
-// and load chai-as-promised and sinon-chai by default
-const sinonChai = require("sinon-chai");
-const chaiAsPromised = require("chai-as-promised");
-const { should, use } = require("chai");
+exports.mochaHooks = {
+	beforeAll: async () => {
+		const sinonChai = require("sinon-chai");
+		const chaiAsPromised = (await import("chai-as-promised")).default;
+		const { should, use } = require("chai");
 
-should();
-use(sinonChai);
-use(chaiAsPromised);
+		should();
+		use(sinonChai);
+		use(chaiAsPromised);
+	},
+};

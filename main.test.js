@@ -1,30 +1,126 @@
 "use strict";
 
-/**
- * This is a dummy TypeScript test file using chai and mocha
- *
- * It's automatically excluded from npm and its build output is excluded from both git and npm.
- * It is advised to test all your modules with accompanying *.test.js-files
- */
-
-// tslint:disable:no-unused-expression
-
 const { expect } = require("chai");
-// import { functionToTest } from "./moduleToTest";
+const proxyquire = require("proxyquire").noCallThru();
 
-describe("module to test => function to test", () => {
-	// initializing logic
-	const expected = 5;
+class FakeAdapter {
+	constructor(options) {
+		this.options = options;
+		this.namespace = "iobapp.0";
+		this.version = "0.2.1";
+		this.config = {};
+		this.log = {
+			debug: () => {},
+			error: () => {},
+			info: () => {},
+			warn: () => {},
+		};
+	}
 
-	it(`should return ${expected}`, () => {
-		const result = 5;
-		// assign result a value from functionToTest
-		expect(result).to.equal(expected);
-		// or using the should() syntax
-		result.should.equal(expected);
+	on() {}
+}
+
+function makeAdapter() {
+	const createAdapter = proxyquire("./main", {
+		"@iobroker/adapter-core": {
+			Adapter: FakeAdapter,
+		},
 	});
-	// ... more tests => it
+	return createAdapter({});
+}
 
+function makeSocket() {
+	return {
+		/** @type {any[]} */
+		sent: [],
+		send(payload) {
+			this.sent.push(JSON.parse(payload));
+		},
+	};
+}
+
+describe("Protocol v2 WebSocket contract", () => {
+	it("responds to hello with versioned capabilities", () => {
+		const adapter = makeAdapter();
+		const socket = makeSocket();
+
+		adapter.handleHello(socket);
+
+		expect(socket.sent).to.have.length(1);
+		expect(socket.sent[0]).to.deep.include({ action: "hello" });
+		expect(socket.sent[0].data.protocolVersion).to.equal(2);
+		expect(socket.sent[0].data.adapterVersion).to.equal("0.2.1");
+		expect(socket.sent[0].data.capabilities).to.include.members([
+			"getActionCatalog",
+			"executeAction",
+			"requestSensorRefresh",
+		]);
+		expect(socket.sent[0].data.supportedActions).to.include.members([
+			"setDeviceToken",
+			"set",
+			"setPresence",
+			"notification",
+			"getActionCatalog",
+			"executeAction",
+			"requestSensorRefresh",
+		]);
+	});
+
+	it("returns runtime and NFC tag actions in the action catalog", async () => {
+		const adapter = makeAdapter();
+		adapter.getForeignObjectsAsync = async () => ({
+			"iobapp.0.tags.frontdoor": {
+				common: { name: "Front Door" },
+			},
+		});
+		const socket = makeSocket();
+
+		await adapter.handleGetActionCatalog(socket);
+
+		expect(socket.sent).to.have.length(1);
+		expect(socket.sent[0]).to.deep.equal({
+			action: "getActionCatalog",
+			data: {
+				actions: [
+					{
+						id: "requestSensorRefresh",
+						name: "Sensoren aktualisieren",
+						type: "runtime",
+					},
+					{
+						id: "tag:frontdoor",
+						name: "Front Door",
+						type: "tagTrigger",
+					},
+				],
+			},
+		});
+	});
+
+	it("maps executeAction requestSensorRefresh to a refresh request and success ack", async () => {
+		const adapter = makeAdapter();
+		const socket = makeSocket();
+
+		await adapter.handleExecuteAction(socket, {
+			actionId: "requestSensorRefresh",
+			payload: { source: "test" },
+		});
+
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "requestSensorRefresh",
+				data: {
+					reason: "executeAction",
+					payload: { source: "test" },
+				},
+			},
+			{
+				action: "executeAction",
+				success: true,
+				data: {
+					actionId: "requestSensorRefresh",
+				},
+			},
+		]);
+	});
 });
-
-// ... more test suites => describe

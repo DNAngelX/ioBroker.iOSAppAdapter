@@ -31,7 +31,7 @@ class Iobapp extends utils.Adapter {
                 try {
                     JSON.parse(buf);
                 } catch (e) {
-                    this.log.error('Invalid JSON received:', buf.toString());
+                    this.log.error(`Invalid JSON received: ${buf.toString()}`);
                     throw new Error('Invalid JSON');
                 }
             }
@@ -80,7 +80,7 @@ class Iobapp extends utils.Adapter {
     async onMessage(obj) {
         if (typeof obj === 'object' && obj.message) {
             if (obj.command === 'saveSettings') {
-                this.log.debug('Received request to save settings:', obj.message);
+                this.log.debug(`Received request to save settings: ${JSON.stringify(obj.message)}`);
                 this.config.username = obj.message.username;
                 this.config.password = obj.message.password;
                 this.config.wsPort = obj.message.wsPort;
@@ -89,6 +89,26 @@ class Iobapp extends utils.Adapter {
                     this.log.debug('Settings saved successfully.');
                 });
             }
+        }
+    }
+
+    async saveConfig(callback) {
+        try {
+            const instanceId = `system.adapter.${this.namespace}`;
+            const instanceObject = await this.getForeignObjectAsync(instanceId);
+            if (instanceObject) {
+                instanceObject.native = {
+                    ...instanceObject.native,
+                    username: this.config.username,
+                    password: this.config.password,
+                    wsPort: this.config.wsPort,
+                };
+                await this.setForeignObjectAsync(instanceId, instanceObject);
+            }
+        } catch (err) {
+            this.log.error(`Error saving adapter settings: ${err}`);
+        } finally {
+            callback();
         }
     }
 
@@ -105,7 +125,7 @@ class Iobapp extends utils.Adapter {
                 data: { online: true, location: `${latitude},${longitude}` }
             }));
         } catch (err) {
-            this.log.error('Error getting system config:', err);
+            this.log.error(`Error getting system config: ${err}`);
             socket.send(JSON.stringify({
                 action: 'onlineState',
                 data: { online: true, location: { latitude: null, longitude: null }, error: 'Could not retrieve location information' }
@@ -129,10 +149,10 @@ class Iobapp extends utils.Adapter {
             }
 
             const personsArray = Array.from(persons).map(person => ({ person }));
-            this.log.debug('Sending persons:', personsArray);
+            this.log.debug(`Sending persons: ${JSON.stringify(personsArray)}`);
             socket.send(JSON.stringify({ action: 'getPersons', data: personsArray }));
         } catch (err) {
-            this.log.error('Error getting persons:', err);
+            this.log.error(`Error getting persons: ${err}`);
             socket.send(JSON.stringify({ action: 'getPersons', error: 'Error getting persons' }));
         }
     }
@@ -154,10 +174,10 @@ class Iobapp extends utils.Adapter {
             }
 
             const devicesArray = Array.from(devices).map(device => ({ device }));
-            this.log.debug('Sending devices:', devicesArray);
+            this.log.debug(`Sending devices: ${JSON.stringify(devicesArray)}`);
             socket.send(JSON.stringify({ action: 'getDevices', data: devicesArray }));
         } catch (err) {
-            this.log.error(`Error getting devices for person ${person}:`, err);
+            this.log.error(`Error getting devices for person ${person}: ${err}`);
             socket.send(JSON.stringify({ action: 'getDevices', error: `Error getting devices for person ${person}` }));
         }
     }
@@ -174,7 +194,7 @@ class Iobapp extends utils.Adapter {
             this.log.debug(`Person ${person} created.`);
             socket.send(JSON.stringify({ action: 'postPersons', success: true }));
         } catch (err) {
-            this.log.error(`Error creating person ${person}:`, err);
+            this.log.error(`Error creating person ${person}: ${err}`);
             socket.send(JSON.stringify({ action: 'postPersons', error: `Error creating person ${person}` }));
         }
     }
@@ -201,6 +221,8 @@ class Iobapp extends utils.Adapter {
                         type: sensor.type,
                         role: sensor.role || 'value',
                         unit: sensor.unit || '',
+                        read: true,
+                        write: true,
                         states: sensor.states || undefined
                     },
                     native: {},
@@ -214,7 +236,7 @@ class Iobapp extends utils.Adapter {
             this.log.debug(`Device ${device} created for person ${person}.`);
             socket.send(JSON.stringify({ action: 'postDevices', success: true }));
         } catch (err) {
-            this.log.error(`Error creating device ${device} for person ${person}:`, err);
+            this.log.error(`Error creating device ${device} for person ${person}: ${err}`);
             socket.send(JSON.stringify({ action: 'postDevices', error: `Error creating device ${device} for person ${person}` }));
         }
     }
@@ -227,7 +249,7 @@ class Iobapp extends utils.Adapter {
             this.log.debug(`Value for path ${path} set to ${value}`);
             socket.send(JSON.stringify({ action: 'set', success: true }));
         } catch (err) {
-            this.log.error(`Error setting value for path ${path}:`, err);
+            this.log.error(`Error setting value for path ${path}: ${err}`);
             socket.send(JSON.stringify({ action: 'set', error: `Error setting value for path ${path}` }));
         }
     }
@@ -254,7 +276,7 @@ class Iobapp extends utils.Adapter {
                 await this.setStateAsync(pathPresence, { val: presence, ack: true });
                 this.log.debug(`Presence for ${person} in ${locationName} set to ${presence}`);
             } catch (err) {
-                this.log.error(`Error setting presence for ${person} in ${locationName}:`, err);
+                this.log.error(`Error setting presence for ${person} in ${locationName}: ${err}`);
                 socket.send(JSON.stringify({ action: 'setPresence', error: `Error setting presence for ${person} in ${locationName}` }));
                 return;
             }
@@ -278,7 +300,7 @@ class Iobapp extends utils.Adapter {
                 await this.setStateAsync(pathDistance, { val: distance, ack: true });
                 this.log.debug(`Distance for ${person} in ${locationName} set to ${distance}`);
             } catch (err) {
-                this.log.error(`Error setting distance for ${person} in ${locationName}:`, err);
+                this.log.error(`Error setting distance for ${person} in ${locationName}: ${err}`);
                 socket.send(JSON.stringify({ action: 'setPresence', error: `Error setting distance for ${person} in ${locationName}` }));
                 return;
             }
@@ -303,10 +325,10 @@ class Iobapp extends utils.Adapter {
             }
 
             const zonesArray = Array.from(zones).map(zone => ({ zone }));
-            this.log.debug('Sending zones:', zonesArray);
+            this.log.debug(`Sending zones: ${JSON.stringify(zonesArray)}`);
             socket.send(JSON.stringify({ action: 'getZones', data: zonesArray }));
         } catch (err) {
-            this.log.error('Error getting zones:', err);
+            this.log.error(`Error getting zones: ${err}`);
             socket.send(JSON.stringify({ action: 'getZones', error: 'Error getting zones' }));
         }
     }
@@ -331,7 +353,7 @@ class Iobapp extends utils.Adapter {
                 socket.send(JSON.stringify({ action: 'tagsTrigger', error: 'missing tag' }));
             }
         } catch (err) {
-            this.log.error(`Error handling tagsTrigger for tag ID ${tagId}:`, err);
+            this.log.error(`Error handling tagsTrigger for tag ID ${tagId}: ${err}`);
             socket.send(JSON.stringify({ action: 'tagsTrigger', error: `Error handling tagsTrigger for tag ID ${tagId}` }));
         }
     }
@@ -357,9 +379,113 @@ class Iobapp extends utils.Adapter {
             this.log.debug(`Tag ${tagId} created with name ${name}`);
             socket.send(JSON.stringify({ action: 'createTag', success: true }));
         } catch (err) {
-            this.log.error(`Error creating tag ${tagId}:`, err);
+            this.log.error(`Error creating tag ${tagId}: ${err}`);
             socket.send(JSON.stringify({ action: 'createTag', error: `Error creating tag ${tagId}` }));
         }
+    }
+
+    handleHello(socket) {
+        socket.send(JSON.stringify({
+            action: 'hello',
+            data: {
+                protocolVersion: 2,
+                adapterVersion: this.version || 'unknown',
+                capabilities: [
+                    'getActionCatalog',
+                    'executeAction',
+                    'requestSensorRefresh'
+                ],
+                supportedActions: [
+                    'setDeviceToken',
+                    'onlineState',
+                    'getPersons',
+                    'getDevices',
+                    'postPersons',
+                    'postDevices',
+                    'set',
+                    'setPresence',
+                    'notification',
+                    'getZones',
+                    'tagsTrigger',
+                    'createTag',
+                    'getActionCatalog',
+                    'executeAction',
+                    'requestSensorRefresh'
+                ]
+            }
+        }));
+    }
+
+    async handleGetActionCatalog(socket) {
+        try {
+            const objects = await this.getForeignObjectsAsync(`${this.namespace}.tags.*`, 'state');
+            const tagActions = Object.entries(objects || {}).map(([id, object]) => {
+                const tagId = id.split('.').pop();
+                return {
+                    id: `tag:${tagId}`,
+                    name: object.common && object.common.name ? object.common.name : tagId,
+                    type: 'tagTrigger'
+                };
+            });
+
+            socket.send(JSON.stringify({
+                action: 'getActionCatalog',
+                data: {
+                    actions: [
+                        {
+                            id: 'requestSensorRefresh',
+                            name: 'Sensoren aktualisieren',
+                            type: 'runtime'
+                        },
+                        ...tagActions
+                    ]
+                }
+            }));
+        } catch (err) {
+            this.log.error(`Error getting action catalog: ${err}`);
+            socket.send(JSON.stringify({ action: 'getActionCatalog', error: 'Error getting action catalog' }));
+        }
+    }
+
+    async handleExecuteAction(socket, data) {
+        const { actionId, payload } = data || {};
+        if (!actionId) {
+            socket.send(JSON.stringify({ action: 'executeAction', error: 'Missing actionId' }));
+            return;
+        }
+
+        if (actionId.startsWith('tag:')) {
+            const tagId = actionId.substring(4);
+            const tagPath = `${this.namespace}.tags.${tagId}`;
+            try {
+                const tagObj = await this.getForeignObjectAsync(tagPath);
+                if (!tagObj) {
+                    socket.send(JSON.stringify({ action: 'executeAction', error: 'missing tag' }));
+                    return;
+                }
+                await this.setStateAsync(tagPath, true, true);
+                setTimeout(async () => {
+                    await this.setStateAsync(tagPath, false, true);
+                }, 1000);
+                socket.send(JSON.stringify({ action: 'executeAction', success: true, data: { actionId } }));
+            } catch (err) {
+                this.log.error(`Error executing action ${actionId}: ${err}`);
+                socket.send(JSON.stringify({ action: 'executeAction', error: `Error executing action ${actionId}` }));
+            }
+            return;
+        }
+
+        if (actionId === 'requestSensorRefresh') {
+            socket.send(JSON.stringify({ action: 'requestSensorRefresh', data: { reason: 'executeAction', payload: payload || {} } }));
+            socket.send(JSON.stringify({ action: 'executeAction', success: true, data: { actionId } }));
+            return;
+        }
+
+        socket.send(JSON.stringify({ action: 'executeAction', error: `Unknown actionId ${actionId}` }));
+    }
+
+    handleRequestSensorRefresh(socket) {
+        socket.send(JSON.stringify({ action: 'requestSensorRefresh', success: true }));
     }
 
     initializeWebSocket(wsPort) {
@@ -404,6 +530,9 @@ class Iobapp extends utils.Adapter {
             }
     
             switch (action) {
+                case 'hello':
+                    this.handleHello(socket);
+                    break;
                 case 'setDeviceToken':
                     const deviceToken = data.deviceToken;
                     const person = data.person;
@@ -471,6 +600,15 @@ class Iobapp extends utils.Adapter {
                     break;
                 case 'createTag':
                     this.handleCreateTag(socket, data);
+                    break;
+                case 'getActionCatalog':
+                    this.handleGetActionCatalog(socket);
+                    break;
+                case 'executeAction':
+                    this.handleExecuteAction(socket, data);
+                    break;
+                case 'requestSensorRefresh':
+                    this.handleRequestSensorRefresh(socket);
                     break;
                 default:
                     this.log.warn(`Unknown action: ${action}`);
@@ -578,25 +716,23 @@ class Iobapp extends utils.Adapter {
             const imageUrl = imageUrlState ? imageUrlState.val : '';
             const videoUrl = videoUrlState ? videoUrlState.val : '';
     
-            const notification = {
-                aps: {
-                    alert: {
-                        title: title || undefined,
-                        subtitle: subtitle || undefined,
-                        body: body || undefined,
-                    },
-                    sound: sound || undefined,
-                },
-                'body-html': bodyHtml || undefined,
-                'media-url': mediaUrl || undefined,
-                'image-url': imageUrl || undefined,
-                'video-url': videoUrl || undefined
-            };
-    
-            // Remove undefined properties
-            Object.keys(notification).forEach(key => notification[key] === undefined && delete notification[key]);
-            Object.keys(notification.aps).forEach(key => notification.aps[key] === undefined && delete notification.aps[key]);
-            if (Object.keys(notification.aps.alert).length === 0) delete notification.aps.alert;
+            /** @type {Record<string, unknown>} */
+            const alert = {};
+            if (title) alert.title = title;
+            if (subtitle) alert.subtitle = subtitle;
+            if (body) alert.body = body;
+
+            /** @type {Record<string, unknown>} */
+            const aps = {};
+            if (Object.keys(alert).length > 0) aps.alert = alert;
+            if (sound) aps.sound = sound;
+
+            /** @type {Record<string, unknown>} */
+            const notification = { aps };
+            if (bodyHtml) notification['body-html'] = bodyHtml;
+            if (mediaUrl) notification['media-url'] = mediaUrl;
+            if (imageUrl) notification['image-url'] = imageUrl;
+            if (videoUrl) notification['video-url'] = videoUrl;
     
             const payload = JSON.stringify(notification);
             await this.setStateAsync(`${basePath}.payload`, payload, true);
@@ -629,7 +765,7 @@ class Iobapp extends utils.Adapter {
             const payload = payloadState ? payloadState.val : null;
     
             if (payload) {
-                const message = { action: 'notification', payload: JSON.parse(payload) };
+                const message = { action: 'notification', payload: JSON.parse(String(payload)) };
     
                 for (const clientId of clientIds) {
                     if (clientId) {
@@ -655,6 +791,7 @@ class Iobapp extends utils.Adapter {
             `${this.namespace}.messages`
         ];
 
+        /** @type {{ id: string, name: string, type: ioBroker.CommonType, role: string, read: boolean, write: boolean, states?: Record<string, string> }[]} */
         const commonStates = [
             { id: 'send', name: 'Send', type: 'boolean', role: 'button', read: false, write: true },
             { id: 'payload', name: 'Payload', type: 'string', role: 'text', read: true, write: true },
@@ -714,7 +851,7 @@ class Iobapp extends utils.Adapter {
     }
 }
 
-if (module.parent) {
+if (require.main !== module) {
     module.exports = (options) => new Iobapp(options);
 } else {
     new Iobapp();

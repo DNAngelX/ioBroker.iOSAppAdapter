@@ -81,6 +81,8 @@
     "build:react": "build-adapter react",
     "watch:react": "build-adapter react --watch",
     "test": "npm run test:js && npm run test:package",
+    "test:js": "mocha --config test/mocharc.custom.json \"*.test.js\"",
+    "test:package": "mocha --config test/mocharc.custom.json test/package.js",
     "check": "tsc --noEmit -p tsconfig.check.json",
     "translate": "translate-adapter",
     "release": "release-script"
