@@ -104,7 +104,7 @@
       "nl": "integratie voor iOS-app",
       "fr": "intégration pour l'application iOS",
       "it": "integrazione per l'app iOS",
-      "es": "integración para la aplicación iOS",
+      "es": "integración para la aplicación de iOS",
       "pl": "integracja z aplikacją na iOS",
       "uk": "інтеграція для програми iOS",
       "zh-cn": "iOS 应用程序集成"
@@ -115,7 +115,7 @@
       "ru": "Этот адаптер интегрирует приложение iOS с IoBroker, предоставляя конечные точки REST для данных устройства.",
       "pt": "Este adaptador integra um aplicativo iOS com IoBroker, fornecendo endpoints REST para dados do dispositivo.",
       "nl": "Deze adapter integreert een iOS-app met IoBroker en biedt REST-eindpunten voor apparaatgegevens.",
-      "fr": "Cet adaptateur intègre une application iOS avec IoBroker, fournissant des points de terminaison REST pour les données de l'appareil.",
+      "fr": "Cet adaptateur intègre une application iOS avec IoBroker, fournissant des points de terminaison pour les données de l'appareil.",
       "it": "Questo adattatore integra un'app iOS con IoBroker, fornendo endpoint REST per i dati del dispositivo.",
       "es": "Este adaptador integra una aplicación de iOS con IoBroker, proporcionando puntos finales REST para los datos del dispositivo.",
       "pl": "Ten adapter integruje aplikację iOS z IoBrokerem, zapewniając punkty końcowe REST dla danych urządzenia.",
@@ -165,8 +165,9 @@
     ]
   },
   "native": {
-    "option1": true,
-    "option2": "42"
+    "username": "",
+    "password": "",
+    "wsPort": 9192
   },
   "objects": [],
   "instanceObjects": []
