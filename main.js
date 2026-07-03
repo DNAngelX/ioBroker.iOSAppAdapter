@@ -405,6 +405,7 @@ class Iobapp extends utils.Adapter {
                     'set',
                     'setPresence',
                     'notification',
+                    'notificationAck',
                     'getZones',
                     'tagsTrigger',
                     'createTag',
@@ -486,6 +487,11 @@ class Iobapp extends utils.Adapter {
 
     handleRequestSensorRefresh(socket) {
         socket.send(JSON.stringify({ action: 'requestSensorRefresh', success: true }));
+    }
+
+    handleNotificationAck(socket, data) {
+        this.log.debug(`Notification acknowledgment received: ${JSON.stringify(data || {})}`);
+        socket.send(JSON.stringify({ action: 'notificationAck', success: true }));
     }
 
     initializeWebSocket(wsPort) {
@@ -609,6 +615,9 @@ class Iobapp extends utils.Adapter {
                     break;
                 case 'requestSensorRefresh':
                     this.handleRequestSensorRefresh(socket);
+                    break;
+                case 'notificationAck':
+                    this.handleNotificationAck(socket, data);
                     break;
                 default:
                     this.log.warn(`Unknown action: ${action}`);

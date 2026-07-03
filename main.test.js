@@ -60,6 +60,7 @@ describe("Protocol v2 WebSocket contract", () => {
 			"set",
 			"setPresence",
 			"notification",
+			"notificationAck",
 			"getActionCatalog",
 			"executeAction",
 			"requestSensorRefresh",
@@ -120,6 +121,28 @@ describe("Protocol v2 WebSocket contract", () => {
 				data: {
 					actionId: "requestSensorRefresh",
 				},
+			},
+		]);
+	});
+
+	it("acknowledges notificationAck without changing the existing notification payload contract", () => {
+		const adapter = makeAdapter();
+		const socket = makeSocket();
+
+		adapter.handleNotificationAck(socket, {
+			payload: {
+				aps: {
+					alert: {
+						title: "Test",
+					},
+				},
+			},
+		});
+
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "notificationAck",
+				success: true,
 			},
 		]);
 	});
