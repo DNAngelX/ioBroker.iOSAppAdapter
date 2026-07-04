@@ -890,10 +890,9 @@ class Iobapp extends utils.Adapter {
             client.send(JSON.stringify(message));
             this.log.info(`Message sent to client ${clientId}: ${JSON.stringify(message)}`);
             return true;
-        } else {
-            this.queueMessageForClient(clientId, message);
-            return false;
         }
+
+        return false;
     }
 
     sendMessageToClients(message) {
@@ -919,6 +918,17 @@ class Iobapp extends utils.Adapter {
         this.messageQueue.set(clientId, clientQueue);
     
         this.log.debug(`Message queued for client ${clientId}: ${JSON.stringify(message)} Queue: ${JSON.stringify(Array.from(this.messageQueue.entries()))}`);
+    }
+
+    removeQueuedMessageForClient(clientId, message) {
+        if (!this.messageQueue || !this.messageQueue.has(clientId)) return;
+        const serializedMessage = JSON.stringify(message);
+        const queue = this.messageQueue.get(clientId).filter(queuedMessage => JSON.stringify(queuedMessage) !== serializedMessage);
+        if (queue.length === 0) {
+            this.messageQueue.delete(clientId);
+        } else {
+            this.messageQueue.set(clientId, queue);
+        }
     }
     
 
@@ -1036,7 +1046,12 @@ class Iobapp extends utils.Adapter {
                     if (clientId) {
                         const deliveredViaWebSocket = this.sendMessageToClient(clientId, message);
                         if (!deliveredViaWebSocket) {
-                            await this.sendRelayNotification(clientId, message.payload, 'offline_notification');
+                            const deliveredViaRelay = await this.sendRelayNotification(clientId, message.payload, 'offline_notification');
+                            if (!deliveredViaRelay) {
+                                this.queueMessageForClient(clientId, message);
+                            } else {
+                                this.removeQueuedMessageForClient(clientId, message);
+                            }
                         }
                     } else {
                         this.log.warn(`Ignoring device with missing client ID for ${clientId}`);
