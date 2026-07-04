@@ -1,0 +1,14 @@
+{
+  "name": "iobroker-ios-push-relay",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mandantenfähiges APNs Silent-Push-Relay für ioBroker iOS/watchOS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

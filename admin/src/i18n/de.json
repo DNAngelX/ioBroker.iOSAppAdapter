@@ -1,5 +1,13 @@
 {
     "iobapp adapter settings": "Adaptereinstellungen für iobapp",
     "option1": "Option 1",
-    "option2": "Option 2"
+    "option2": "Option 2",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "wsPort": "WebSocket-Port",
+    "relayEnabled": "Silent-Push-Relay aktivieren",
+    "relayUrl": "Relay-URL",
+    "relayApiKey": "Relay API-Key",
+    "wakeAfterMinutes": "Wake nach Minuten ohne Last Seen",
+    "minWakeIntervalMinutes": "Minimaler Abstand zwischen Wake-Pushes"
 }

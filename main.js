@@ -21,6 +21,8 @@ class Iobapp extends utils.Adapter {
         this.wsServer = null; // WebSocket server
         this.messageQueue = new Map(); // Queue for messages to be sent later
         this.clients = new Map(); // Store clients with their IDs
+        this.relayWakeInterval = null;
+        this.relayLastWakeByDevice = new Map();
     }
 
     async onReady() {
@@ -40,6 +42,7 @@ class Iobapp extends utils.Adapter {
         const wsPort = this.config.wsPort || 9192;
 
         this.initializeWebSocket(wsPort);
+        this.startRelayWakeMonitor();
 
         this.subscribeStates('*');
     }
@@ -56,6 +59,10 @@ class Iobapp extends utils.Adapter {
                 this.wsServer.close(() => {
                     this.log.debug('WebSocket server closed.');
                 });
+            }
+            if (this.relayWakeInterval) {
+                clearInterval(this.relayWakeInterval);
+                this.relayWakeInterval = null;
             }
             callback();
         } catch (e) {
@@ -84,6 +91,11 @@ class Iobapp extends utils.Adapter {
                 this.config.username = obj.message.username;
                 this.config.password = obj.message.password;
                 this.config.wsPort = obj.message.wsPort;
+                this.config.relayEnabled = obj.message.relayEnabled;
+                this.config.relayUrl = obj.message.relayUrl;
+                this.config.relayApiKey = obj.message.relayApiKey;
+                this.config.wakeAfterMinutes = obj.message.wakeAfterMinutes;
+                this.config.minWakeIntervalMinutes = obj.message.minWakeIntervalMinutes;
                 this.saveConfig(() => {
                     this.sendTo(obj.from, obj.command, { result: 'Settings saved' }, obj.callback);
                     this.log.debug('Settings saved successfully.');
@@ -102,6 +114,11 @@ class Iobapp extends utils.Adapter {
                     username: this.config.username,
                     password: this.config.password,
                     wsPort: this.config.wsPort,
+                    relayEnabled: this.config.relayEnabled,
+                    relayUrl: this.config.relayUrl,
+                    relayApiKey: this.config.relayApiKey,
+                    wakeAfterMinutes: this.config.wakeAfterMinutes,
+                    minWakeIntervalMinutes: this.config.minWakeIntervalMinutes,
                 };
                 await this.setForeignObjectAsync(instanceId, instanceObject);
             }
@@ -245,13 +262,43 @@ class Iobapp extends utils.Adapter {
         const { path, value } = data;
         this.log.debug(`Received request to set value for path: ${path} to ${value}`);
         try {
-            await this.setForeignStateAsync(`${this.namespace}.${path}`, { val: value, ack: true });
+            const fullPath = `${this.namespace}.${path}`;
+            await this.ensureStateObject(fullPath, value);
+            await this.setForeignStateAsync(fullPath, { val: value, ack: true });
             this.log.debug(`Value for path ${path} set to ${value}`);
             socket.send(JSON.stringify({ action: 'set', success: true }));
         } catch (err) {
             this.log.error(`Error setting value for path ${path}: ${err}`);
             socket.send(JSON.stringify({ action: 'set', error: `Error setting value for path ${path}` }));
         }
+    }
+
+    async ensureStateObject(id, value) {
+        const existing = await this.getForeignObjectAsync(id);
+        if (existing) return;
+
+        const segments = id.split('.');
+        for (let index = 2; index < segments.length - 1; index++) {
+            const channelId = segments.slice(0, index + 1).join('.');
+            await this.setObjectNotExistsAsync(channelId, {
+                type: 'channel',
+                common: { name: segments[index] },
+                native: {},
+            });
+        }
+
+        const valueType = typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'boolean' : 'string';
+        await this.setObjectNotExistsAsync(id, {
+            type: 'state',
+            common: {
+                name: segments[segments.length - 1],
+                type: valueType,
+                role: valueType === 'boolean' ? 'indicator' : 'value',
+                read: true,
+                write: true,
+            },
+            native: {},
+        });
     }
 
     async handleSetPresence(socket, data) {
@@ -536,6 +583,133 @@ class Iobapp extends utils.Adapter {
         socket.send(JSON.stringify({ action: 'notificationAck', success: true }));
     }
 
+    isRelayEnabled() {
+        return Boolean(this.config.relayEnabled && this.config.relayUrl && this.config.relayApiKey);
+    }
+
+    relayUrl(path) {
+        return `${String(this.config.relayUrl || '').replace(/\/+$/, '')}${path}`;
+    }
+
+    async relayRequest(path, options = {}) {
+        const response = await fetch(this.relayUrl(path), {
+            ...options,
+            headers: {
+                'content-type': 'application/json',
+                authorization: `Bearer ${this.config.relayApiKey}`,
+                ...(options.headers || {}),
+            },
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(body.error || `Relay request failed with ${response.status}`);
+        }
+        return body;
+    }
+
+    async registerRelayDevice({ person, device, appDeviceId, apnsToken, lastSeenAt }) {
+        if (!this.isRelayEnabled() || !appDeviceId || !apnsToken) return;
+        try {
+            await this.relayRequest('/api/v1/devices/register', {
+                method: 'POST',
+                body: JSON.stringify({
+                    person,
+                    device,
+                    appDeviceId,
+                    apnsToken,
+                    lastSeenAt,
+                }),
+            });
+            this.log.debug(`Registered relay device ${person}.${device} (${appDeviceId})`);
+        } catch (err) {
+            this.log.warn(`Relay device registration failed for ${person}.${device}: ${err.message}`);
+        }
+    }
+
+    async wakeRelayDevice(appDeviceId, reason) {
+        if (!this.isRelayEnabled() || !appDeviceId) return false;
+        const minWakeIntervalMinutes = Number(this.config.minWakeIntervalMinutes || 10);
+        const minIntervalMs = Math.max(minWakeIntervalMinutes, 1) * 60 * 1000;
+        const lastWake = this.relayLastWakeByDevice.get(appDeviceId) || 0;
+        if (Date.now() - lastWake < minIntervalMs) {
+            this.log.debug(`Skipping relay wake for ${appDeviceId}: local throttle`);
+            return false;
+        }
+
+        try {
+            const result = await this.relayRequest(`/api/v1/devices/${encodeURIComponent(appDeviceId)}/wake`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    reason,
+                    minIntervalMs,
+                    payload: {
+                        adapterNamespace: this.namespace,
+                    },
+                }),
+            });
+            if (!result.skipped) {
+                this.relayLastWakeByDevice.set(appDeviceId, Date.now());
+                this.log.info(`Relay wake sent for ${appDeviceId}: ${reason}`);
+            } else {
+                this.log.debug(`Relay wake skipped for ${appDeviceId}: ${result.reason || 'unknown'}`);
+            }
+            return true;
+        } catch (err) {
+            this.log.warn(`Relay wake failed for ${appDeviceId}: ${err.message}`);
+            return false;
+        }
+    }
+
+    startRelayWakeMonitor() {
+        if (this.relayWakeInterval) {
+            clearInterval(this.relayWakeInterval);
+            this.relayWakeInterval = null;
+        }
+        if (!this.isRelayEnabled()) {
+            this.log.info('Silent Push relay disabled or incomplete.');
+            return;
+        }
+
+        this.log.info(`Silent Push relay enabled: ${this.config.relayUrl}`);
+        this.relayWakeInterval = setInterval(() => {
+            this.checkStaleRelayDevices().catch(err => this.log.warn(`Relay stale-device check failed: ${err.message}`));
+        }, 60 * 1000);
+        this.checkStaleRelayDevices().catch(err => this.log.warn(`Initial relay stale-device check failed: ${err.message}`));
+    }
+
+    async checkStaleRelayDevices() {
+        if (!this.isRelayEnabled()) return;
+        const wakeAfterMinutes = Number(this.config.wakeAfterMinutes || 10);
+        const minAgeSeconds = Math.max(wakeAfterMinutes, 1) * 60;
+        const tokenStates = await this.getStatesAsync(`${this.namespace}.person.*.*.device_token`);
+        const tokenEntries = Object.entries(tokenStates || {});
+
+        for (const [tokenId, tokenState] of tokenEntries) {
+            const match = tokenId.match(new RegExp(`^${this.namespace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.person\\.([^.]+)\\.([^.]+)\\.device_token$`));
+            if (!match || !tokenState || !tokenState.val) continue;
+
+            const [, person, device] = match;
+            const basePath = `${this.namespace}.person.${person}.${device}`;
+            const clientState = await this.getStateAsync(`${basePath}.ws_device_id`);
+            const lastSeenState = await this.getStateAsync(`${basePath}.sensors.last_seen_timestamp`);
+            const appDeviceId = clientState && clientState.val ? String(clientState.val) : `${person}.${device}`;
+            const apnsToken = String(tokenState.val);
+            const lastSeenSeconds = lastSeenState && Number(lastSeenState.val) > 0 ? Number(lastSeenState.val) : 0;
+            const lastSeenAt = lastSeenSeconds > 0 ? new Date(lastSeenSeconds * 1000).toISOString() : null;
+
+            await this.registerRelayDevice({ person, device, appDeviceId, apnsToken, lastSeenAt });
+
+            if (!lastSeenSeconds) {
+                this.log.debug(`Skipping relay wake for ${person}.${device}: missing last_seen_timestamp`);
+                continue;
+            }
+            const ageSeconds = Date.now() / 1000 - lastSeenSeconds;
+            if (ageSeconds >= minAgeSeconds) {
+                await this.wakeRelayDevice(appDeviceId, `stale_last_seen_${Math.round(ageSeconds)}s`);
+            }
+        }
+    }
+
     initializeWebSocket(wsPort) {
         this.wsServer = new WebSocket.Server({ port: wsPort });
         this.clients = new Map(); // Store clients with their IDs
@@ -613,9 +787,28 @@ class Iobapp extends utils.Adapter {
                         native: {},
                     });
 
+                    await this.setObjectNotExistsAsync(`${this.namespace}.person.${person}.${device}.device_token`, {
+                        type: 'state',
+                        common: {
+                            name: 'APNs Device Token',
+                            type: 'string',
+                            role: 'text',
+                            read: true,
+                            write: false,
+                        },
+                        native: {},
+                    });
 
                     await this.setStateAsync(`${this.namespace}.person.${person}.${device}.ws_device_id`, clientId, true);
+                    await this.setStateAsync(`${this.namespace}.person.${person}.${device}.device_token`, deviceToken, true);
                     await this.setConnectionState(`${person}.${device}`, true);
+                    await this.registerRelayDevice({
+                        person,
+                        device,
+                        appDeviceId: clientId,
+                        apnsToken: deviceToken,
+                        lastSeenAt: new Date().toISOString(),
+                    });
                     socket.send(JSON.stringify({ action: 'setDeviceToken', success: true }));
                     this.sendQueuedMessages(socket);
                     break;

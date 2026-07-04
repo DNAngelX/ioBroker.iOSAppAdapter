@@ -167,7 +167,12 @@
   "native": {
     "username": "",
     "password": "",
-    "wsPort": 9192
+    "wsPort": 9192,
+    "relayEnabled": false,
+    "relayUrl": "http://192.168.20.190:8787",
+    "relayApiKey": "",
+    "wakeAfterMinutes": 10,
+    "minWakeIntervalMinutes": 10
   },
   "objects": [],
   "instanceObjects": []

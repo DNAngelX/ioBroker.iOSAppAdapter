@@ -145,8 +145,21 @@ class Settings extends React.Component {
 	render() {
 		return (
 			<form className={this.props.classes.tab}>
-				{this.renderCheckbox("option1", "option1")}<br />
-				{this.renderInput("option2", "option2", "text")}
+				{this.renderInput("username", "username", "text")}
+				<br />
+				{this.renderInput("password", "password", "password")}
+				<br />
+				{this.renderInput("wsPort", "wsPort", "number")}
+				<br />
+				{this.renderCheckbox("relayEnabled", "relayEnabled")}
+				<br />
+				{this.renderInput("relayUrl", "relayUrl", "text")}
+				<br />
+				{this.renderInput("relayApiKey", "relayApiKey", "password")}
+				<br />
+				{this.renderInput("wakeAfterMinutes", "wakeAfterMinutes", "number")}
+				<br />
+				{this.renderInput("minWakeIntervalMinutes", "minWakeIntervalMinutes", "number")}
 			</form>
 		);
 	}
