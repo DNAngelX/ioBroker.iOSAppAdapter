@@ -496,7 +496,7 @@ async function handleApi(req, res, url) {
       sendJson(res, 404, { error: 'Device not registered for this instance' });
       return;
     }
-    const throttleMs = Number(body.minIntervalMs || DEFAULT_WAKE_THROTTLE_MS);
+    const throttleMs = body.minIntervalMs === undefined ? DEFAULT_WAKE_THROTTLE_MS : Number(body.minIntervalMs);
     if (device.lastWakeAt && Date.now() - Date.parse(device.lastWakeAt) < throttleMs) {
       sendJson(res, 202, { success: false, skipped: true, reason: 'throttled', lastWakeAt: device.lastWakeAt });
       return;
