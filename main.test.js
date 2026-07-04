@@ -54,6 +54,9 @@ describe("Protocol v2 WebSocket contract", () => {
 			"getActionCatalog",
 			"executeAction",
 			"requestSensorRefresh",
+			"notificationCommands",
+			"diagnostics",
+			"silentPushWake",
 		]);
 		expect(socket.sent[0].data.supportedActions).to.include.members([
 			"setDeviceToken",
@@ -64,6 +67,7 @@ describe("Protocol v2 WebSocket contract", () => {
 			"getActionCatalog",
 			"executeAction",
 			"requestSensorRefresh",
+			"notificationCommand",
 		]);
 	});
 
@@ -89,6 +93,31 @@ describe("Protocol v2 WebSocket contract", () => {
 						type: "runtime",
 					},
 					{
+						id: "request_location_update",
+						name: "Standort senden",
+						type: "notificationCommand",
+					},
+					{
+						id: "command_update_sensors",
+						name: "Sensoren per Command aktualisieren",
+						type: "notificationCommand",
+					},
+					{
+						id: "update_widgets",
+						name: "Widgets aktualisieren",
+						type: "notificationCommand",
+					},
+					{
+						id: "update_watch",
+						name: "Watch aktualisieren",
+						type: "notificationCommand",
+					},
+					{
+						id: "clear_notification",
+						name: "Notifications löschen",
+						type: "notificationCommand",
+					},
+					{
 						id: "tag:frontdoor",
 						name: "Front Door",
 						type: "tagTrigger",
@@ -96,6 +125,33 @@ describe("Protocol v2 WebSocket contract", () => {
 				],
 			},
 		});
+	});
+
+	it("maps executeAction notification commands to notificationCommand", async () => {
+		const adapter = makeAdapter();
+		const socket = makeSocket();
+
+		await adapter.handleExecuteAction(socket, {
+			actionId: "request_location_update",
+			payload: { source: "test" },
+		});
+
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "notificationCommand",
+				data: {
+					command: "request_location_update",
+					payload: { source: "test" },
+				},
+			},
+			{
+				action: "executeAction",
+				success: true,
+				data: {
+					actionId: "request_location_update",
+				},
+			},
+		]);
 	});
 
 	it("maps executeAction requestSensorRefresh to a refresh request and success ack", async () => {

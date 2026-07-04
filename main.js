@@ -393,7 +393,10 @@ class Iobapp extends utils.Adapter {
                 capabilities: [
                     'getActionCatalog',
                     'executeAction',
-                    'requestSensorRefresh'
+                    'requestSensorRefresh',
+                    'notificationCommands',
+                    'diagnostics',
+                    'silentPushWake'
                 ],
                 supportedActions: [
                     'setDeviceToken',
@@ -411,7 +414,8 @@ class Iobapp extends utils.Adapter {
                     'createTag',
                     'getActionCatalog',
                     'executeAction',
-                    'requestSensorRefresh'
+                    'requestSensorRefresh',
+                    'notificationCommand'
                 ]
             }
         }));
@@ -437,6 +441,31 @@ class Iobapp extends utils.Adapter {
                             id: 'requestSensorRefresh',
                             name: 'Sensoren aktualisieren',
                             type: 'runtime'
+                        },
+                        {
+                            id: 'request_location_update',
+                            name: 'Standort senden',
+                            type: 'notificationCommand'
+                        },
+                        {
+                            id: 'command_update_sensors',
+                            name: 'Sensoren per Command aktualisieren',
+                            type: 'notificationCommand'
+                        },
+                        {
+                            id: 'update_widgets',
+                            name: 'Widgets aktualisieren',
+                            type: 'notificationCommand'
+                        },
+                        {
+                            id: 'update_watch',
+                            name: 'Watch aktualisieren',
+                            type: 'notificationCommand'
+                        },
+                        {
+                            id: 'clear_notification',
+                            name: 'Notifications löschen',
+                            type: 'notificationCommand'
                         },
                         ...tagActions
                     ]
@@ -478,6 +507,19 @@ class Iobapp extends utils.Adapter {
 
         if (actionId === 'requestSensorRefresh') {
             socket.send(JSON.stringify({ action: 'requestSensorRefresh', data: { reason: 'executeAction', payload: payload || {} } }));
+            socket.send(JSON.stringify({ action: 'executeAction', success: true, data: { actionId } }));
+            return;
+        }
+
+        const notificationCommands = new Set([
+            'command_update_sensors',
+            'request_location_update',
+            'update_widgets',
+            'update_watch',
+            'clear_notification'
+        ]);
+        if (notificationCommands.has(actionId)) {
+            socket.send(JSON.stringify({ action: 'notificationCommand', data: { command: actionId, payload: payload || {} } }));
             socket.send(JSON.stringify({ action: 'executeAction', success: true, data: { actionId } }));
             return;
         }
