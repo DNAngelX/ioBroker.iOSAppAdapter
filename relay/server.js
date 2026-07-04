@@ -177,16 +177,22 @@ function apnsHost() {
   return state.apns.environment === 'production' ? 'api.push.apple.com' : 'api.sandbox.push.apple.com';
 }
 
-function sendApns(device, reason, payload = {}) {
+function sendApns(device, reason, payload = {}, options = {}) {
   return new Promise((resolve, reject) => {
     const token = signApnsJwt();
     const host = apnsHost();
-    const body = JSON.stringify({
-      aps: { 'content-available': 1 },
-      command: 'command_update_sensors',
-      reason: reason || 'stale',
-      ...payload,
-    });
+    const isAlertPush = options.pushType === 'alert' || Boolean(payload.aps && (payload.aps.alert || payload.aps.sound || payload.aps.badge));
+    const body = JSON.stringify(isAlertPush
+      ? {
+          ...payload,
+          reason: reason || 'notification',
+        }
+      : {
+          aps: { 'content-available': 1 },
+          command: 'command_update_sensors',
+          reason: reason || 'stale',
+          ...payload,
+        });
 
     const client = http2.connect(`https://${host}`);
     const request = client.request({
@@ -194,8 +200,8 @@ function sendApns(device, reason, payload = {}) {
       ':path': `/3/device/${device.apnsToken}`,
       authorization: `bearer ${token}`,
       'apns-topic': state.apns.bundleId,
-      'apns-push-type': 'background',
-      'apns-priority': '5',
+      'apns-push-type': isAlertPush ? 'alert' : 'background',
+      'apns-priority': isAlertPush ? '10' : '5',
       'content-type': 'application/json',
       'content-length': Buffer.byteLength(body),
     });
@@ -511,6 +517,34 @@ async function handleApi(req, res, url) {
     } catch (error) {
       const result = error.result || {};
       addPushLog({ deviceId: key, instanceId: instance.id, reason: body.reason || 'stale', status: 'error', statusCode: result.statusCode || 0, apnsId: result.apnsId || '', error: error.message });
+      saveState(state);
+      sendJson(res, error.statusCode || 500, { error: error.message, result });
+    }
+    return;
+  }
+
+  const notifyMatch = url.pathname.match(/^\/api\/v1\/devices\/([^/]+)\/notify$/);
+  if (req.method === 'POST' && notifyMatch) {
+    const body = await readJsonBody(req);
+    const appDeviceId = decodeURIComponent(notifyMatch[1]);
+    const key = deviceKey(instance.id, appDeviceId);
+    const device = state.devices[key];
+    if (!device) {
+      sendJson(res, 404, { error: 'Device not registered for this instance' });
+      return;
+    }
+    if (!body.payload || typeof body.payload !== 'object') {
+      sendJson(res, 400, { error: 'payload is required' });
+      return;
+    }
+    try {
+      const result = await sendApns(device, body.reason || 'notification', body.payload, { pushType: 'alert' });
+      addPushLog({ deviceId: key, instanceId: instance.id, reason: body.reason || 'notification', status: 'sent', statusCode: result.statusCode, apnsId: result.apnsId, error: '' });
+      saveState(state);
+      sendJson(res, 200, { success: true, result });
+    } catch (error) {
+      const result = error.result || {};
+      addPushLog({ deviceId: key, instanceId: instance.id, reason: body.reason || 'notification', status: 'error', statusCode: result.statusCode || 0, apnsId: result.apnsId || '', error: error.message });
       saveState(state);
       sendJson(res, error.statusCode || 500, { error: error.message, result });
     }

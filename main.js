@@ -661,6 +661,24 @@ class Iobapp extends utils.Adapter {
         }
     }
 
+    async sendRelayNotification(appDeviceId, payload, reason) {
+        if (!this.isRelayEnabled() || !appDeviceId || !payload) return false;
+        try {
+            await this.relayRequest(`/api/v1/devices/${encodeURIComponent(appDeviceId)}/notify`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    reason: reason || 'offline_notification',
+                    payload,
+                }),
+            });
+            this.log.info(`Relay notification sent for ${appDeviceId}`);
+            return true;
+        } catch (err) {
+            this.log.warn(`Relay notification failed for ${appDeviceId}: ${err.message}`);
+            return false;
+        }
+    }
+
     startRelayWakeMonitor() {
         if (this.relayWakeInterval) {
             clearInterval(this.relayWakeInterval);
@@ -871,8 +889,10 @@ class Iobapp extends utils.Adapter {
         if (client && client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify(message));
             this.log.info(`Message sent to client ${clientId}: ${JSON.stringify(message)}`);
+            return true;
         } else {
             this.queueMessageForClient(clientId, message);
+            return false;
         }
     }
 
@@ -1014,7 +1034,10 @@ class Iobapp extends utils.Adapter {
     
                 for (const clientId of clientIds) {
                     if (clientId) {
-                        this.sendMessageToClient(clientId, message);
+                        const deliveredViaWebSocket = this.sendMessageToClient(clientId, message);
+                        if (!deliveredViaWebSocket) {
+                            await this.sendRelayNotification(clientId, message.payload, 'offline_notification');
+                        }
                     } else {
                         this.log.warn(`Ignoring device with missing client ID for ${clientId}`);
                     }
