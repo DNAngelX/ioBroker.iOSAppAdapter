@@ -655,6 +655,7 @@ class Iobapp extends utils.Adapter {
             }
             return true;
         } catch (err) {
+            this.relayLastWakeByDevice.set(appDeviceId, Date.now());
             this.log.warn(`Relay wake failed for ${appDeviceId}: ${err.message}`);
             return false;
         }
