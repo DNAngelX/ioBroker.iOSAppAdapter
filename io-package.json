@@ -169,7 +169,7 @@
     "password": "",
     "wsPort": 9192,
     "relayEnabled": false,
-    "relayUrl": "http://192.168.20.190:8787",
+    "relayUrl": "https://ios.stoll-mueller.de",
     "relayApiKey": "",
     "wakeAfterMinutes": 10,
     "minWakeIntervalMinutes": 10
