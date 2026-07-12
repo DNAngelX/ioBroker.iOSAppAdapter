@@ -382,53 +382,70 @@ class Iobapp extends utils.Adapter {
 
     async handleTagsTrigger(socket, data) {
         const { tagId } = data;
+        const normalizedTagId = this.normalizeTagId(tagId);
         this.log.debug(`Received tagsTrigger for tag ID: ${tagId}`);
-        const tagPath = `${this.namespace}.tags.${tagId}`;
+        const tagPath = `${this.namespace}.tags.${normalizedTagId}`;
 
         try {
             const tagObj = await this.getForeignObjectAsync(tagPath);
             if (tagObj) {
-                this.log.debug(`Tag ${tagId} found in ioBroker`);
+                this.log.debug(`Tag ${normalizedTagId} found in ioBroker`);
                 await this.setStateAsync(tagPath, true, true);
                 setTimeout(async () => {
                     await this.setStateAsync(tagPath, false, true);
-                    this.log.debug(`Tag ${tagId} set to false`);
+                    this.log.debug(`Tag ${normalizedTagId} set to false`);
                 }, 1000); // 1 Sekunde Verzögerung, um den Zustand zurückzusetzen
                 socket.send(JSON.stringify({ action: 'tagsTrigger', success: true }));
             } else {
-                this.log.debug(`Tag ${tagId} not found in ioBroker`);
+                this.log.debug(`Tag ${normalizedTagId} not found in ioBroker`);
                 socket.send(JSON.stringify({ action: 'tagsTrigger', error: 'missing tag' }));
             }
         } catch (err) {
-            this.log.error(`Error handling tagsTrigger for tag ID ${tagId}: ${err}`);
-            socket.send(JSON.stringify({ action: 'tagsTrigger', error: `Error handling tagsTrigger for tag ID ${tagId}` }));
+            this.log.error(`Error handling tagsTrigger for tag ID ${normalizedTagId}: ${err}`);
+            socket.send(JSON.stringify({ action: 'tagsTrigger', error: `Error handling tagsTrigger for tag ID ${normalizedTagId}` }));
         }
     }
 
     async handleCreateTag(socket, data) {
         const { tagId, name } = data;
-        this.log.debug(`Received request to create tag with ID: ${tagId} and name: ${name}`);
-        const tagPath = `${this.namespace}.tags.${tagId}`;
+        const normalizedTagId = this.normalizeTagId(tagId || name);
+        const displayName = String(name || normalizedTagId);
+        this.log.debug(`Received request to create tag with ID: ${tagId} normalized as ${normalizedTagId} and name: ${displayName}`);
+        const tagPath = `${this.namespace}.tags.${normalizedTagId}`;
 
         try {
             await this.setObjectNotExistsAsync(tagPath, {
                 type: 'state',
                 common: {
-                    name: name,
+                    name: displayName,
                     type: 'boolean',
                     role: 'indicator',
                     read: true,
                     write: true,
                 },
-                native: {},
+                native: {
+                    tagId: normalizedTagId,
+                    originalTagId: tagId || '',
+                },
             });
 
-            this.log.debug(`Tag ${tagId} created with name ${name}`);
-            socket.send(JSON.stringify({ action: 'createTag', success: true }));
+            this.log.debug(`Tag ${normalizedTagId} created with name ${displayName}`);
+            socket.send(JSON.stringify({ action: 'createTag', success: true, data: { tagId: normalizedTagId } }));
         } catch (err) {
-            this.log.error(`Error creating tag ${tagId}: ${err}`);
-            socket.send(JSON.stringify({ action: 'createTag', error: `Error creating tag ${tagId}` }));
+            this.log.error(`Error creating tag ${normalizedTagId}: ${err}`);
+            socket.send(JSON.stringify({ action: 'createTag', error: `Error creating tag ${normalizedTagId}` }));
         }
+    }
+
+    normalizeTagId(tagId) {
+        const raw = String(tagId || '').trim().toLowerCase();
+        const normalized = raw
+            .normalize('NFKD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/-{2,}/g, '-');
+        return normalized || 'tag';
     }
 
     handleHello(socket) {
@@ -532,7 +549,7 @@ class Iobapp extends utils.Adapter {
         }
 
         if (actionId.startsWith('tag:')) {
-            const tagId = actionId.substring(4);
+            const tagId = this.normalizeTagId(actionId.substring(4));
             const tagPath = `${this.namespace}.tags.${tagId}`;
             try {
                 const tagObj = await this.getForeignObjectAsync(tagPath);
@@ -1041,6 +1058,9 @@ class Iobapp extends utils.Adapter {
             const bodyState = await this.getStateAsync(`${basePath}.body`);
             const bodyHtmlState = await this.getStateAsync(`${basePath}.body-html`);
             const soundState = await this.getStateAsync(`${basePath}.sound`);
+            const interruptionLevelState = await this.getStateAsync(`${basePath}.interruption-level`);
+            const relevanceScoreState = await this.getStateAsync(`${basePath}.relevance-score`);
+            const badgeState = await this.getStateAsync(`${basePath}.badge`);
             const mediaUrlState = await this.getStateAsync(`${basePath}.media-url`);
             const imageUrlState = await this.getStateAsync(`${basePath}.image-url`);
             const videoUrlState = await this.getStateAsync(`${basePath}.video-url`);
@@ -1050,6 +1070,9 @@ class Iobapp extends utils.Adapter {
             const body = bodyState ? bodyState.val : '';
             const bodyHtml = bodyHtmlState ? bodyHtmlState.val : '';
             const sound = soundState ? soundState.val : '';
+            const interruptionLevel = interruptionLevelState ? interruptionLevelState.val : '';
+            const relevanceScore = relevanceScoreState ? Number(relevanceScoreState.val) : NaN;
+            const badge = badgeState ? Number(badgeState.val) : NaN;
             const mediaUrl = mediaUrlState ? mediaUrlState.val : '';
             const imageUrl = imageUrlState ? imageUrlState.val : '';
             const videoUrl = videoUrlState ? videoUrlState.val : '';
@@ -1064,6 +1087,9 @@ class Iobapp extends utils.Adapter {
             const aps = {};
             if (Object.keys(alert).length > 0) aps.alert = alert;
             if (sound) aps.sound = sound;
+            if (interruptionLevel) aps['interruption-level'] = interruptionLevel;
+            if (!Number.isNaN(relevanceScore)) aps['relevance-score'] = Math.min(Math.max(relevanceScore, 0), 1);
+            if (!Number.isNaN(badge)) aps.badge = Math.max(Math.trunc(badge), 0);
 
             /** @type {Record<string, unknown>} */
             const notification = { aps };
@@ -1138,6 +1164,9 @@ class Iobapp extends utils.Adapter {
             { id: 'body', name: 'Nachrichtentext', type: 'string', role: 'text', read: true, write: true },
             { id: 'body-html', name: 'Nachrichtentext HTML', type: 'string', role: 'text', read: true, write: true },
             { id: 'sound', name: 'Sound', type: 'string', role: 'text', read: true, write: true, states: { '': 'Kein', 'default': 'Default' } },
+            { id: 'interruption-level', name: 'Nachrichtentyp', type: 'string', role: 'text', read: true, write: true, states: { '': 'Standard', 'passive': 'Passiv', 'active': 'Aktiv', 'time-sensitive': 'Zeitkritisch', 'critical': 'Critical Alert (Entitlement erforderlich)' } },
+            { id: 'relevance-score', name: 'Relevance Score', type: 'number', role: 'value', read: true, write: true },
+            { id: 'badge', name: 'Badge Nummer', type: 'number', role: 'value', read: true, write: true },
             { id: 'media-url', name: 'Media URL', type: 'string', role: 'text', read: true, write: true },
             { id: 'image-url', name: 'Image URL', type: 'string', role: 'text', read: true, write: true },
             { id: 'video-url', name: 'Video URL', type: 'string', role: 'text', read: true, write: true },

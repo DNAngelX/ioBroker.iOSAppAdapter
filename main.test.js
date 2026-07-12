@@ -354,4 +354,82 @@ describe("APN message routing", () => {
 			},
 		]);
 	});
+
+	it("adds APNs interruption level, relevance score and badge to generated payloads", async () => {
+		const adapter = makeAdapter();
+		const setStates = [];
+		const statesById = {
+			"iobapp.0.messages.title": { val: "Alarm" },
+			"iobapp.0.messages.subtitle": { val: "" },
+			"iobapp.0.messages.body": { val: "Tür offen" },
+			"iobapp.0.messages.body-html": { val: "" },
+			"iobapp.0.messages.sound": { val: "default" },
+			"iobapp.0.messages.interruption-level": { val: "time-sensitive" },
+			"iobapp.0.messages.relevance-score": { val: 0.9 },
+			"iobapp.0.messages.badge": { val: 3 },
+			"iobapp.0.messages.media-url": { val: "" },
+			"iobapp.0.messages.image-url": { val: "" },
+			"iobapp.0.messages.video-url": { val: "" },
+		};
+		adapter.getStateAsync = async id => statesById[id] || null;
+		adapter.setStateAsync = async (id, val, ack) => {
+			setStates.push({ id, val: JSON.parse(val), ack });
+		};
+
+		await adapter.generatePayload("iobapp.0.messages.send");
+
+		expect(setStates).to.deep.equal([
+			{
+				id: "iobapp.0.messages.payload",
+				val: {
+					aps: {
+						alert: {
+							title: "Alarm",
+							body: "Tür offen",
+						},
+						sound: "default",
+						"interruption-level": "time-sensitive",
+						"relevance-score": 0.9,
+						badge: 3,
+					},
+				},
+				ack: true,
+			},
+		]);
+	});
+});
+
+describe("NFC tag routing", () => {
+	it("normalizes friendly tag ids for create and trigger", async () => {
+		const adapter = makeAdapter();
+		const createdObjects = [];
+		const stateWrites = [];
+		const socket = makeSocket();
+
+		adapter.setObjectNotExistsAsync = async (id, obj) => {
+			createdObjects.push({ id, obj });
+		};
+		adapter.getForeignObjectAsync = async id => (
+			id === "iobapp.0.tags.haustur-test" ? { common: { name: "Haustür Test" } } : null
+		);
+		adapter.setStateAsync = async (id, val, ack) => {
+			stateWrites.push({ id, val, ack });
+		};
+
+		await adapter.handleCreateTag(socket, { tagId: "Haustür Test", name: "Haustür Test" });
+		await adapter.handleTagsTrigger(socket, { tagId: "Haustür Test" });
+
+		expect(createdObjects[0].id).to.equal("iobapp.0.tags.haustur-test");
+		expect(createdObjects[0].obj.common.name).to.equal("Haustür Test");
+		expect(socket.sent[0]).to.deep.equal({
+			action: "createTag",
+			success: true,
+			data: { tagId: "haustur-test" },
+		});
+		expect(stateWrites[0]).to.deep.equal({
+			id: "iobapp.0.tags.haustur-test",
+			val: true,
+			ack: true,
+		});
+	});
 });

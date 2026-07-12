@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "news": {
+      "0.2.3": {
+        "en": "Add notification priority fields and improve NFC tag routing",
+        "de": "Nachrichtentypen ergänzt und NFC-Tag-Routing verbessert",
+        "ru": "Add notification priority fields and improve NFC tag routing",
+        "pt": "Add notification priority fields and improve NFC tag routing",
+        "nl": "Add notification priority fields and improve NFC tag routing",
+        "fr": "Ajout des priorités de notification et amélioration du routage NFC",
+        "it": "Add notification priority fields and improve NFC tag routing",
+        "es": "Add notification priority fields and improve NFC tag routing",
+        "pl": "Add notification priority fields and improve NFC tag routing",
+        "uk": "Add notification priority fields and improve NFC tag routing",
+        "zh-cn": "Add notification priority fields and improve NFC tag routing"
+      },
       "0.2.2": {
         "en": "Fix person and global notification routing",
         "de": "Nachrichten-Routing für Personen und globale Nachrichten korrigiert",
