@@ -241,6 +241,36 @@ describe("Protocol v2 WebSocket contract", () => {
 		]);
 	});
 
+	it("returns learned indoor areas as room options when enum rooms are empty", async () => {
+		const adapter = makeAdapter();
+		adapter.getForeignObjectsAsync = async pattern => {
+			if (pattern === "enum.rooms.*") return {};
+			throw new Error(`Unexpected pattern ${pattern}`);
+		};
+		adapter.getStatesAsync = async pattern => {
+			expect(pattern).to.equal("iobapp.0.indoor.areas.*.name");
+			return {
+				"iobapp.0.indoor.areas.cheerroom.name": { val: "Cheerroom" },
+				"iobapp.0.indoor.areas.sofa-ecke.name": { val: "Sofa Ecke" },
+			};
+		};
+		const socket = makeSocket();
+
+		await adapter.handleGetIndoorRooms(socket);
+
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "getIndoorRooms",
+				data: {
+					rooms: [
+						{ id: "cheerroom", name: "Cheerroom", source: "indoorArea" },
+						{ id: "sofa-ecke", name: "Sofa Ecke", source: "indoorArea" },
+					],
+				},
+			},
+		]);
+	});
+
 	it("stores indoor beacon scans and writes a learning fingerprint", async () => {
 		const adapter = makeAdapter();
 		const objects = [];
@@ -273,6 +303,8 @@ describe("Protocol v2 WebSocket contract", () => {
 
 		expect(objects.map(entry => entry.id)).to.include.members([
 			"iobapp.0.indoor.beacons.shelly-kueche",
+			"iobapp.0.indoor.beacons.shelly-kueche.classification",
+			"iobapp.0.indoor.beacons.shelly-kueche.assigned_area",
 			"iobapp.0.indoor.areas.wohnzimmer-sofa",
 			"iobapp.0.person.Jan.iPhone.indoor.last_scan",
 			"iobapp.0.person.Jan.iPhone.indoor.current_area",
@@ -298,6 +330,42 @@ describe("Protocol v2 WebSocket contract", () => {
 				},
 			},
 		]);
+	});
+
+	it("excludes ignored and mobile beacons from learned fingerprints", async () => {
+		const adapter = makeAdapter();
+		const states = [];
+		adapter.setObjectNotExistsAsync = async () => {};
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		adapter.getStatesAsync = async pattern => {
+			if (pattern === "iobapp.0.indoor.beacons.*.classification") {
+				return {
+					"iobapp.0.indoor.beacons.airpods.classification": { val: "mobile" },
+					"iobapp.0.indoor.beacons.macbook.classification": { val: "ignored" },
+				};
+			}
+			return {};
+		};
+		const socket = makeSocket();
+
+		await adapter.handleIndoorBeaconScan(socket, {
+			person: "Jan",
+			device: "iPhone",
+			trigger: "learning",
+			timestamp: "2026-07-12T20:00:00.000Z",
+			learningAreaId: "cheerroom",
+			learningAreaName: "Cheerroom",
+			beacons: [
+				{ id: "shelly", name: "Shelly", rssi: -50 },
+				{ id: "airpods", name: "AirPods", rssi: -42 },
+				{ id: "macbook", name: "MacBook", rssi: -38 },
+			],
+		});
+
+		const fingerprintWrite = states.find(entry => entry.id === "iobapp.0.indoor.areas.cheerroom.fingerprint_json");
+		const fingerprint = JSON.parse(fingerprintWrite.val);
+		expect(fingerprint.beacons.map(beacon => beacon.id)).to.deep.equal(["shelly"]);
+		expect(socket.sent[0]).to.deep.include({ action: "indoorBeaconScan", success: true });
 	});
 });
 

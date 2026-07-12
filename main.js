@@ -43,6 +43,7 @@ class Iobapp extends utils.Adapter {
 
         this.initializeWebSocket(wsPort);
         this.startRelayWakeMonitor();
+        await this.ensureIndoorBeaconMetadataObjects();
 
         this.subscribeStates('*');
     }
@@ -479,7 +480,7 @@ class Iobapp extends utils.Adapter {
         return String(name);
     }
 
-    async ensureState(id, name, type, role, write = false) {
+    async ensureState(id, name, type, role, write = false, common = {}) {
         await this.setObjectNotExistsAsync(id, {
             type: 'state',
             common: {
@@ -488,6 +489,7 @@ class Iobapp extends utils.Adapter {
                 role,
                 read: true,
                 write,
+                ...common,
             },
             native: {},
         });
@@ -512,12 +514,59 @@ class Iobapp extends utils.Adapter {
                     name: this.translatedName(object && object.common && object.common.name) || id.split('.').pop(),
                 }))
                 .sort((left, right) => left.name.localeCompare(right.name, 'de'));
+            const learnedAreas = await this.loadIndoorAreaOptions();
+            const roomIds = new Set(rooms.map(room => room.id));
+            for (const area of learnedAreas) {
+                if (!roomIds.has(area.id)) {
+                    rooms.push(area);
+                    roomIds.add(area.id);
+                }
+            }
+            rooms.sort((left, right) => left.name.localeCompare(right.name, 'de'));
 
             socket.send(JSON.stringify({ action: 'getIndoorRooms', data: { rooms } }));
         } catch (err) {
             this.log.error(`Error getting indoor rooms: ${err}`);
             socket.send(JSON.stringify({ action: 'getIndoorRooms', error: 'Error getting indoor rooms' }));
         }
+    }
+
+    async loadIndoorAreaOptions() {
+        if (typeof this.getStatesAsync !== 'function') return [];
+        const states = await this.getStatesAsync(`${this.namespace}.indoor.areas.*.name`);
+        return Object.entries(states || {})
+            .map(([id, state]) => {
+                const match = id.match(new RegExp(`^${this.namespace.replace('.', '\\.') }\\.indoor\\.areas\\.([^\\.]+)\\.name$`));
+                const areaId = match && match[1] ? match[1] : '';
+                return {
+                    id: areaId,
+                    name: state && state.val ? String(state.val) : areaId,
+                    source: 'indoorArea',
+                };
+            })
+            .filter(area => area.id)
+            .sort((left, right) => left.name.localeCompare(right.name, 'de'));
+    }
+
+    async loadIndoorBeaconClassifications() {
+        if (typeof this.getStatesAsync !== 'function') return new Map();
+        const states = await this.getStatesAsync(`${this.namespace}.indoor.beacons.*.classification`);
+        const classifications = new Map();
+        const escapedNamespace = this.namespace.replace('.', '\\.');
+        for (const [id, state] of Object.entries(states || {})) {
+            const match = id.match(new RegExp(`^${escapedNamespace}\\.indoor\\.beacons\\.([^\\.]+)\\.classification$`));
+            if (match && match[1]) {
+                classifications.set(match[1], state && state.val ? String(state.val) : 'unknown');
+            }
+        }
+        return classifications;
+    }
+
+    filterIndoorBeaconsForPositioning(beacons, classifications) {
+        return beacons.filter(beacon => {
+            const classification = classifications.get(beacon.id) || 'unknown';
+            return classification !== 'ignored' && classification !== 'mobile';
+        });
     }
 
     normalizeIndoorBeacon(beacon) {
@@ -536,6 +585,33 @@ class Iobapp extends utils.Adapter {
             manufacturerData: beacon && beacon.manufacturerData ? String(beacon.manufacturerData) : '',
             lastSeen: beacon && beacon.lastSeen ? String(beacon.lastSeen) : new Date().toISOString(),
         };
+    }
+
+    async ensureIndoorBeaconMetadata(base) {
+        await this.ensureState(`${base}.display_name`, 'Display name', 'string', 'text', true);
+        await this.ensureState(`${base}.classification`, 'Classification', 'string', 'text', true, {
+            states: {
+                unknown: 'Unknown',
+                fixed: 'Fixed room beacon',
+                mobile: 'Mobile device',
+                ignored: 'Ignored',
+            },
+        });
+        await this.ensureState(`${base}.assigned_area`, 'Assigned area', 'string', 'text', true);
+        await this.ensureState(`${base}.notes`, 'Notes', 'string', 'text', true);
+    }
+
+    async ensureIndoorBeaconMetadataObjects() {
+        try {
+            const objects = await this.getForeignObjectsAsync(`${this.namespace}.indoor.beacons.*`);
+            for (const [id, object] of Object.entries(objects || {})) {
+                if (object && object.type === 'channel') {
+                    await this.ensureIndoorBeaconMetadata(id);
+                }
+            }
+        } catch (err) {
+            this.log.warn(`Could not ensure indoor beacon metadata objects: ${err.message}`);
+        }
     }
 
     buildIndoorFingerprint(areaId, areaName, beacons, timestamp) {
@@ -622,15 +698,16 @@ class Iobapp extends utils.Adapter {
             await this.ensureState(`${base}.connectable`, 'Connectable', 'boolean', 'indicator');
             await this.ensureState(`${base}.services`, 'Services', 'string', 'json');
             await this.ensureState(`${base}.manufacturer_data`, 'Manufacturer data', 'string', 'text');
+            await this.ensureIndoorBeaconMetadata(base);
         }
 
         if (areaId) {
             const areaBase = `${this.namespace}.indoor.areas.${areaId}`;
             await this.ensureChannel(areaBase, areaName || areaId);
             await this.ensureState(`${areaBase}.name`, 'Area name', 'string', 'text', true);
-            await this.ensureState(`${areaBase}.last_learning`, 'Last learning', 'string', 'date');
-            await this.ensureState(`${areaBase}.sample_count`, 'Sample count', 'number', 'value');
-            await this.ensureState(`${areaBase}.fingerprint_json`, 'Fingerprint JSON', 'string', 'json');
+            await this.ensureState(`${areaBase}.last_learning`, 'Last learning', 'string', 'date', true);
+            await this.ensureState(`${areaBase}.sample_count`, 'Sample count', 'number', 'value', true);
+            await this.ensureState(`${areaBase}.fingerprint_json`, 'Fingerprint JSON', 'string', 'json', true);
         }
 
         const deviceBase = `${this.namespace}.person.${person}.${device}.indoor`;
@@ -671,13 +748,15 @@ class Iobapp extends utils.Adapter {
                 await this.setStateAsync(`${base}.manufacturer_data`, beacon.manufacturerData, true);
             }
 
+            const classifications = await this.loadIndoorBeaconClassifications();
+            const positioningBeacons = this.filterIndoorBeaconsForPositioning(beacons, classifications);
             let fingerprints = await this.loadIndoorFingerprints();
             if (learningAreaId) {
-                const fingerprint = this.buildIndoorFingerprint(learningAreaId, learningAreaName, beacons, timestamp);
+                const fingerprint = this.buildIndoorFingerprint(learningAreaId, learningAreaName, positioningBeacons, timestamp);
                 const areaBase = `${this.namespace}.indoor.areas.${learningAreaId}`;
                 await this.setStateAsync(`${areaBase}.name`, learningAreaName, true);
                 await this.setStateAsync(`${areaBase}.last_learning`, timestamp, true);
-                await this.setStateAsync(`${areaBase}.sample_count`, beacons.length, true);
+                await this.setStateAsync(`${areaBase}.sample_count`, positioningBeacons.length, true);
                 await this.setStateAsync(`${areaBase}.fingerprint_json`, JSON.stringify(fingerprint), true);
                 fingerprints = [
                     fingerprint,
@@ -687,7 +766,7 @@ class Iobapp extends utils.Adapter {
 
             const inference = learningAreaId
                 ? { currentArea: learningAreaId, confidence: 1, candidates: [] }
-                : this.inferIndoorArea(beacons, fingerprints);
+                : this.inferIndoorArea(positioningBeacons, fingerprints);
             const strongestBeacon = beacons
                 .filter(beacon => beacon.rssi !== null)
                 .sort((left, right) => right.rssi - left.rssi)[0];

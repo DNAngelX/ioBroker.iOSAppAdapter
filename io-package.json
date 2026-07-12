@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.7",
+    "version": "0.2.8",
     "news": {
+      "0.2.8": {
+        "en": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
+        "de": "Indoor-Area- und Beacon-Verwaltung mit Fallback auf gelernte Areas für die iOS-App ergänzt",
+        "ru": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
+        "pt": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
+        "nl": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
+        "fr": "Ajout d'une interface de gestion des zones et balises indoor avec repli sur les zones apprises pour l'app iOS",
+        "it": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
+        "es": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
+        "pl": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
+        "uk": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
+        "zh-cn": "Add indoor area and beacon management UI with learned area fallback for the iOS app"
+      },
       "0.2.7": {
         "en": "Fix settings page scrolling and dark theme label contrast",
         "de": "Scrollbarkeit der Settings-Seite und Label-Kontrast im Dark Theme korrigiert",

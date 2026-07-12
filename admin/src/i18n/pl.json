@@ -19,5 +19,21 @@
     "noIndoorDevices": "No device has sent indoor positioning data yet.",
     "noIndoorAreas": "No area has been learned yet. Start learning in the iOS app.",
     "noIndoorBeacons": "No BLE beacon has been discovered yet.",
-    "currentArea": "Current area"
+    "currentArea": "Current area",
+    "newIndoorArea": "New area",
+    "create": "Create",
+    "indoorAreaDetails": "Area details",
+    "selectIndoorArea": "Select an area to inspect its fingerprint.",
+    "emptyFingerprint": "This area has no fingerprint beacons yet.",
+    "indoorBeaconManagementHint": "Mark fixed beacons, mobile devices and ignored signals for room learning.",
+    "displayName": "Display name",
+    "classification": "Classification",
+    "assignedArea": "Assigned area",
+    "beaconUnknown": "Unknown",
+    "beaconFixed": "Fixed",
+    "beaconMobile": "Mobile",
+    "beaconIgnored": "Ignored",
+    "none": "None",
+    "ignore": "Ignore",
+    "remove": "Remove"
 }
