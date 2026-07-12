@@ -9,7 +9,10 @@ import AdminTab from "./components/adminTab";
  * @type {(_theme: import("@material-ui/core/styles").Theme) => import("@material-ui/styles").StyleRules}
  */
 const styles = (_theme) => ({
-	root: {},
+	root: {
+		height: "100vh",
+		overflow: "hidden",
+	},
 });
 
 class App extends GenericApp {
@@ -43,7 +46,7 @@ class App extends GenericApp {
 		}
 
 		return (
-			<div className="App">
+			<div className={`${this.props.classes.root} App`}>
 				{this.props.isTab ? (
 					<AdminTab socket={this.socket} />
 				) : (

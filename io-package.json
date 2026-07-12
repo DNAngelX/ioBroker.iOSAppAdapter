@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.6",
+    "version": "0.2.7",
     "news": {
+      "0.2.7": {
+        "en": "Fix settings page scrolling and dark theme label contrast",
+        "de": "Scrollbarkeit der Settings-Seite und Label-Kontrast im Dark Theme korrigiert",
+        "ru": "Fix settings page scrolling and dark theme label contrast",
+        "pt": "Fix settings page scrolling and dark theme label contrast",
+        "nl": "Fix settings page scrolling and dark theme label contrast",
+        "fr": "Correction du défilement de la page des paramètres et du contraste des libellés en thème sombre",
+        "it": "Fix settings page scrolling and dark theme label contrast",
+        "es": "Fix settings page scrolling and dark theme label contrast",
+        "pl": "Fix settings page scrolling and dark theme label contrast",
+        "uk": "Fix settings page scrolling and dark theme label contrast",
+        "zh-cn": "Fix settings page scrolling and dark theme label contrast"
+      },
       "0.2.6": {
         "en": "Fix admin UI startup with the materialize GenericApp translation set",
         "de": "Admin-UI-Start mit dem Materialize-GenericApp-Translation-Set korrigiert",

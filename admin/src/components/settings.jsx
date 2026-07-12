@@ -14,10 +14,19 @@ import I18n from "@iobroker/adapter-react/i18n";
 /**
  * @type {() => Record<string, import("@material-ui/core/styles/withStyles").CreateCSSProperties>}
  */
-const styles = () => ({
+const styles = theme => ({
+	tab: {
+		boxSizing: "border-box",
+		height: "calc(100vh - 86px)",
+		overflowY: "auto",
+		padding: theme.spacing(2, 3, 14, 3),
+		maxWidth: 760,
+		color: theme.palette.text.primary,
+	},
 	input: {
 		marginTop: 0,
-		minWidth: 400,
+		width: "100%",
+		maxWidth: 640,
 	},
 	button: {
 		marginRight: 20,
@@ -44,6 +53,15 @@ const styles = () => ({
 	controlElement: {
 		//background: "#d2d2d2",
 		marginBottom: 5,
+		color: theme.palette.text.primary,
+	},
+	sectionTitle: {
+		marginTop: theme.spacing(4),
+		color: theme.palette.text.primary,
+	},
+	sectionHint: {
+		marginBottom: theme.spacing(1),
+		maxWidth: 980,
 	},
 });
 
@@ -162,10 +180,10 @@ class Settings extends React.Component {
 				<br />
 				{this.renderInput("minWakeIntervalMinutes", "minWakeIntervalMinutes", "number")}
 				<br />
-				<Typography variant="h6" style={{ marginTop: 24 }}>
+				<Typography variant="h6" className={this.props.classes.sectionTitle}>
 					{I18n.t("indoorPositioning")}
 				</Typography>
-				<Typography variant="body2" color="textSecondary" style={{ marginBottom: 8 }}>
+				<Typography variant="body2" color="textSecondary" className={this.props.classes.sectionHint}>
 					{I18n.t("indoorPositioningHint")}
 				</Typography>
 				{this.renderCheckbox("indoorEnabled", "indoorEnabled")}
