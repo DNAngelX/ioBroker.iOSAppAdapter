@@ -57,6 +57,7 @@ describe("Protocol v2 WebSocket contract", () => {
 			"notificationCommands",
 			"diagnostics",
 			"silentPushWake",
+			"indoorPositioning",
 		]);
 		expect(socket.sent[0].data.supportedActions).to.include.members([
 			"setDeviceToken",
@@ -68,6 +69,8 @@ describe("Protocol v2 WebSocket contract", () => {
 			"executeAction",
 			"requestSensorRefresh",
 			"notificationCommand",
+			"getIndoorRooms",
+			"indoorBeaconScan",
 		]);
 	});
 
@@ -115,6 +118,11 @@ describe("Protocol v2 WebSocket contract", () => {
 					{
 						id: "clear_notification",
 						name: "Notifications löschen",
+						type: "notificationCommand",
+					},
+					{
+						id: "request_indoor_scan",
+						name: "Indoor-Scan auslösen",
 						type: "notificationCommand",
 					},
 					{
@@ -199,6 +207,95 @@ describe("Protocol v2 WebSocket contract", () => {
 			{
 				action: "notificationAck",
 				success: true,
+			},
+		]);
+	});
+
+	it("returns ioBroker enum rooms for indoor learning", async () => {
+		const adapter = makeAdapter();
+		adapter.getForeignObjectsAsync = async pattern => {
+			expect(pattern).to.equal("enum.rooms.*");
+			return {
+				"enum.rooms.living_room": {
+					common: { name: { en: "Living room", de: "Wohnzimmer" } },
+				},
+				"enum.rooms.kitchen": {
+					common: { name: "Küche" },
+				},
+			};
+		};
+		const socket = makeSocket();
+
+		await adapter.handleGetIndoorRooms(socket);
+
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "getIndoorRooms",
+				data: {
+					rooms: [
+						{ id: "kitchen", name: "Küche" },
+						{ id: "living_room", name: "Wohnzimmer" },
+					],
+				},
+			},
+		]);
+	});
+
+	it("stores indoor beacon scans and writes a learning fingerprint", async () => {
+		const adapter = makeAdapter();
+		const objects = [];
+		const states = [];
+		adapter.setObjectNotExistsAsync = async (id, object) => objects.push({ id, object });
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		adapter.getStatesAsync = async () => ({});
+		const socket = makeSocket();
+
+		await adapter.handleIndoorBeaconScan(socket, {
+			person: "Jan",
+			device: "iPhone",
+			trigger: "learning",
+			timestamp: "2026-07-12T20:00:00.000Z",
+			learningAreaId: "wohnzimmer-sofa",
+			learningAreaName: "Wohnzimmer Sofa",
+			beacons: [
+				{
+					id: "shelly-kueche",
+					name: "Küche",
+					localName: "Shelly",
+					rssi: -62,
+					txPower: 0,
+					connectable: true,
+					services: ["fcd2"],
+					manufacturerData: "0102",
+				},
+			],
+		});
+
+		expect(objects.map(entry => entry.id)).to.include.members([
+			"iobapp.0.indoor.beacons.shelly-kueche",
+			"iobapp.0.indoor.areas.wohnzimmer-sofa",
+			"iobapp.0.person.Jan.iPhone.indoor.last_scan",
+			"iobapp.0.person.Jan.iPhone.indoor.current_area",
+		]);
+		expect(states).to.deep.include.members([
+			{ id: "iobapp.0.indoor.beacons.shelly-kueche.last_rssi", val: -62, ack: true },
+			{ id: "iobapp.0.indoor.areas.wohnzimmer-sofa.name", val: "Wohnzimmer Sofa", ack: true },
+			{ id: "iobapp.0.person.Jan.iPhone.indoor.last_scan_trigger", val: "learning", ack: true },
+			{ id: "iobapp.0.person.Jan.iPhone.indoor.current_area", val: "wohnzimmer-sofa", ack: true },
+		]);
+		const fingerprint = states.find(entry => entry.id === "iobapp.0.indoor.areas.wohnzimmer-sofa.fingerprint_json");
+		expect(JSON.parse(fingerprint.val)).to.deep.include({
+			areaId: "wohnzimmer-sofa",
+			areaName: "Wohnzimmer Sofa",
+		});
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "indoorBeaconScan",
+				success: true,
+				data: {
+					currentArea: "wohnzimmer-sofa",
+					confidence: 1,
+				},
 			},
 		]);
 	});

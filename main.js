@@ -96,6 +96,10 @@ class Iobapp extends utils.Adapter {
                 this.config.relayApiKey = obj.message.relayApiKey;
                 this.config.wakeAfterMinutes = obj.message.wakeAfterMinutes;
                 this.config.minWakeIntervalMinutes = obj.message.minWakeIntervalMinutes;
+                this.config.indoorEnabled = obj.message.indoorEnabled;
+                this.config.indoorScanSeconds = obj.message.indoorScanSeconds;
+                this.config.indoorLearningSeconds = obj.message.indoorLearningSeconds;
+                this.config.indoorMinimumConfidence = obj.message.indoorMinimumConfidence;
                 this.saveConfig(() => {
                     this.sendTo(obj.from, obj.command, { result: 'Settings saved' }, obj.callback);
                     this.log.debug('Settings saved successfully.');
@@ -119,6 +123,10 @@ class Iobapp extends utils.Adapter {
                     relayApiKey: this.config.relayApiKey,
                     wakeAfterMinutes: this.config.wakeAfterMinutes,
                     minWakeIntervalMinutes: this.config.minWakeIntervalMinutes,
+                    indoorEnabled: this.config.indoorEnabled,
+                    indoorScanSeconds: this.config.indoorScanSeconds,
+                    indoorLearningSeconds: this.config.indoorLearningSeconds,
+                    indoorMinimumConfidence: this.config.indoorMinimumConfidence,
                 };
                 await this.setForeignObjectAsync(instanceId, instanceObject);
             }
@@ -448,6 +456,264 @@ class Iobapp extends utils.Adapter {
         return normalized || 'tag';
     }
 
+    normalizeObjectSegment(value, fallback = 'unknown') {
+        const raw = String(value || '').trim().toLowerCase();
+        const normalized = raw
+            .normalize('NFKD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .replace(/-{2,}/g, '-');
+        return normalized || fallback;
+    }
+
+    translatedName(name) {
+        if (!name || typeof name === 'string') {
+            return name || '';
+        }
+
+        if (typeof name === 'object') {
+            return name.de || name.en || Object.values(name).find(value => typeof value === 'string') || '';
+        }
+
+        return String(name);
+    }
+
+    async ensureState(id, name, type, role, write = false) {
+        await this.setObjectNotExistsAsync(id, {
+            type: 'state',
+            common: {
+                name,
+                type,
+                role,
+                read: true,
+                write,
+            },
+            native: {},
+        });
+    }
+
+    async ensureChannel(id, name) {
+        await this.setObjectNotExistsAsync(id, {
+            type: 'channel',
+            common: {
+                name,
+            },
+            native: {},
+        });
+    }
+
+    async handleGetIndoorRooms(socket) {
+        try {
+            const objects = await this.getForeignObjectsAsync('enum.rooms.*');
+            const rooms = Object.entries(objects || {})
+                .map(([id, object]) => ({
+                    id: this.normalizeObjectSegment(id.replace(/^enum\.rooms\./, ''), 'room'),
+                    name: this.translatedName(object && object.common && object.common.name) || id.split('.').pop(),
+                }))
+                .sort((left, right) => left.name.localeCompare(right.name, 'de'));
+
+            socket.send(JSON.stringify({ action: 'getIndoorRooms', data: { rooms } }));
+        } catch (err) {
+            this.log.error(`Error getting indoor rooms: ${err}`);
+            socket.send(JSON.stringify({ action: 'getIndoorRooms', error: 'Error getting indoor rooms' }));
+        }
+    }
+
+    normalizeIndoorBeacon(beacon) {
+        const id = this.normalizeObjectSegment(
+            beacon && (beacon.id || beacon.name || beacon.localName),
+            'beacon'
+        );
+        return {
+            id,
+            name: beacon && beacon.name ? String(beacon.name) : '',
+            localName: beacon && beacon.localName ? String(beacon.localName) : '',
+            rssi: Number.isFinite(Number(beacon && beacon.rssi)) ? Number(beacon.rssi) : null,
+            txPower: Number.isFinite(Number(beacon && beacon.txPower)) ? Number(beacon.txPower) : null,
+            connectable: Boolean(beacon && beacon.connectable),
+            services: Array.isArray(beacon && beacon.services) ? beacon.services.map(service => String(service)) : [],
+            manufacturerData: beacon && beacon.manufacturerData ? String(beacon.manufacturerData) : '',
+            lastSeen: beacon && beacon.lastSeen ? String(beacon.lastSeen) : new Date().toISOString(),
+        };
+    }
+
+    buildIndoorFingerprint(areaId, areaName, beacons, timestamp) {
+        return {
+            areaId,
+            areaName,
+            updatedAt: timestamp,
+            beacons: beacons
+                .filter(beacon => beacon.rssi !== null)
+                .map(beacon => ({
+                    id: beacon.id,
+                    name: beacon.name || beacon.localName || beacon.id,
+                    averageRssi: beacon.rssi,
+                    maxRssi: beacon.rssi,
+                    count: 1,
+                    services: beacon.services,
+                    manufacturerData: beacon.manufacturerData,
+                })),
+        };
+    }
+
+    async loadIndoorFingerprints() {
+        const states = await this.getStatesAsync(`${this.namespace}.indoor.areas.*.fingerprint_json`);
+        return Object.values(states || {})
+            .map(state => {
+                try {
+                    return state && state.val ? JSON.parse(state.val) : null;
+                } catch (err) {
+                    this.log.warn(`Invalid indoor fingerprint json: ${err.message}`);
+                    return null;
+                }
+            })
+            .filter(fingerprint => fingerprint && Array.isArray(fingerprint.beacons));
+    }
+
+    inferIndoorArea(beacons, fingerprints) {
+        const rssiByBeacon = new Map(
+            beacons
+                .filter(beacon => beacon.rssi !== null)
+                .map(beacon => [beacon.id, beacon.rssi])
+        );
+        const candidates = fingerprints.map(fingerprint => {
+            let score = 0;
+            let overlap = 0;
+            for (const learned of fingerprint.beacons) {
+                if (!rssiByBeacon.has(learned.id)) continue;
+                overlap += 1;
+                const delta = Math.abs(rssiByBeacon.get(learned.id) - learned.averageRssi);
+                score += Math.max(0, 100 - delta);
+            }
+            return {
+                areaId: fingerprint.areaId,
+                areaName: fingerprint.areaName,
+                overlap,
+                score,
+                confidence: overlap > 0 ? Math.round((score / (overlap * 100)) * 100) / 100 : 0,
+            };
+        })
+            .filter(candidate => candidate.overlap > 0)
+            .sort((left, right) => right.score - left.score);
+
+        const best = candidates[0] || null;
+        return {
+            currentArea: best && best.confidence >= 0.25 ? best.areaId : '',
+            confidence: best ? best.confidence : 0,
+            candidates,
+        };
+    }
+
+    async ensureIndoorObjects(person, device, beacons, areaId, areaName) {
+        await this.ensureChannel(`${this.namespace}.indoor`, 'Indoor positioning');
+        await this.ensureChannel(`${this.namespace}.indoor.beacons`, 'Discovered BLE beacons');
+        await this.ensureChannel(`${this.namespace}.indoor.areas`, 'Learned indoor areas');
+        await this.ensureChannel(`${this.namespace}.person.${person}.${device}.indoor`, 'Indoor positioning');
+
+        for (const beacon of beacons) {
+            const base = `${this.namespace}.indoor.beacons.${beacon.id}`;
+            await this.ensureChannel(base, beacon.name || beacon.localName || beacon.id);
+            await this.ensureState(`${base}.name`, 'Name', 'string', 'text');
+            await this.ensureState(`${base}.local_name`, 'Local name', 'string', 'text');
+            await this.ensureState(`${base}.last_seen`, 'Last seen', 'string', 'date');
+            await this.ensureState(`${base}.last_rssi`, 'Last RSSI', 'number', 'value');
+            await this.ensureState(`${base}.tx_power`, 'TX power', 'number', 'value');
+            await this.ensureState(`${base}.connectable`, 'Connectable', 'boolean', 'indicator');
+            await this.ensureState(`${base}.services`, 'Services', 'string', 'json');
+            await this.ensureState(`${base}.manufacturer_data`, 'Manufacturer data', 'string', 'text');
+        }
+
+        if (areaId) {
+            const areaBase = `${this.namespace}.indoor.areas.${areaId}`;
+            await this.ensureChannel(areaBase, areaName || areaId);
+            await this.ensureState(`${areaBase}.name`, 'Area name', 'string', 'text', true);
+            await this.ensureState(`${areaBase}.last_learning`, 'Last learning', 'string', 'date');
+            await this.ensureState(`${areaBase}.sample_count`, 'Sample count', 'number', 'value');
+            await this.ensureState(`${areaBase}.fingerprint_json`, 'Fingerprint JSON', 'string', 'json');
+        }
+
+        const deviceBase = `${this.namespace}.person.${person}.${device}.indoor`;
+        await this.ensureState(`${deviceBase}.last_scan`, 'Last indoor scan', 'string', 'date');
+        await this.ensureState(`${deviceBase}.last_scan_trigger`, 'Last indoor scan trigger', 'string', 'text');
+        await this.ensureState(`${deviceBase}.beacon_count`, 'Beacon count', 'number', 'value');
+        await this.ensureState(`${deviceBase}.strongest_beacon`, 'Strongest beacon', 'string', 'text');
+        await this.ensureState(`${deviceBase}.current_area`, 'Current area', 'string', 'text');
+        await this.ensureState(`${deviceBase}.confidence`, 'Area confidence', 'number', 'value');
+        await this.ensureState(`${deviceBase}.candidates_json`, 'Area candidates JSON', 'string', 'json');
+    }
+
+    async handleIndoorBeaconScan(socket, data) {
+        try {
+            const person = data && data.person ? String(data.person).trim() : 'person';
+            const device = data && data.device ? String(data.device).trim() : 'device';
+            const trigger = String((data && data.trigger) || 'unknown');
+            const timestamp = String((data && data.timestamp) || new Date().toISOString());
+            const learningAreaId = data && data.learningAreaId
+                ? this.normalizeObjectSegment(data.learningAreaId, 'area')
+                : '';
+            const learningAreaName = data && data.learningAreaName ? String(data.learningAreaName) : learningAreaId;
+            const beacons = Array.isArray(data && data.beacons)
+                ? data.beacons.map(beacon => this.normalizeIndoorBeacon(beacon))
+                : [];
+
+            await this.ensureIndoorObjects(person, device, beacons, learningAreaId, learningAreaName);
+
+            for (const beacon of beacons) {
+                const base = `${this.namespace}.indoor.beacons.${beacon.id}`;
+                await this.setStateAsync(`${base}.name`, beacon.name, true);
+                await this.setStateAsync(`${base}.local_name`, beacon.localName, true);
+                await this.setStateAsync(`${base}.last_seen`, beacon.lastSeen, true);
+                if (beacon.rssi !== null) await this.setStateAsync(`${base}.last_rssi`, beacon.rssi, true);
+                if (beacon.txPower !== null) await this.setStateAsync(`${base}.tx_power`, beacon.txPower, true);
+                await this.setStateAsync(`${base}.connectable`, beacon.connectable, true);
+                await this.setStateAsync(`${base}.services`, JSON.stringify(beacon.services), true);
+                await this.setStateAsync(`${base}.manufacturer_data`, beacon.manufacturerData, true);
+            }
+
+            let fingerprints = await this.loadIndoorFingerprints();
+            if (learningAreaId) {
+                const fingerprint = this.buildIndoorFingerprint(learningAreaId, learningAreaName, beacons, timestamp);
+                const areaBase = `${this.namespace}.indoor.areas.${learningAreaId}`;
+                await this.setStateAsync(`${areaBase}.name`, learningAreaName, true);
+                await this.setStateAsync(`${areaBase}.last_learning`, timestamp, true);
+                await this.setStateAsync(`${areaBase}.sample_count`, beacons.length, true);
+                await this.setStateAsync(`${areaBase}.fingerprint_json`, JSON.stringify(fingerprint), true);
+                fingerprints = [
+                    fingerprint,
+                    ...fingerprints.filter(candidate => candidate.areaId !== learningAreaId),
+                ];
+            }
+
+            const inference = learningAreaId
+                ? { currentArea: learningAreaId, confidence: 1, candidates: [] }
+                : this.inferIndoorArea(beacons, fingerprints);
+            const strongestBeacon = beacons
+                .filter(beacon => beacon.rssi !== null)
+                .sort((left, right) => right.rssi - left.rssi)[0];
+            const deviceBase = `${this.namespace}.person.${person}.${device}.indoor`;
+            await this.setStateAsync(`${deviceBase}.last_scan`, timestamp, true);
+            await this.setStateAsync(`${deviceBase}.last_scan_trigger`, trigger, true);
+            await this.setStateAsync(`${deviceBase}.beacon_count`, beacons.length, true);
+            await this.setStateAsync(`${deviceBase}.strongest_beacon`, strongestBeacon ? strongestBeacon.id : '', true);
+            await this.setStateAsync(`${deviceBase}.current_area`, inference.currentArea, true);
+            await this.setStateAsync(`${deviceBase}.confidence`, inference.confidence, true);
+            await this.setStateAsync(`${deviceBase}.candidates_json`, JSON.stringify(inference.candidates), true);
+
+            socket.send(JSON.stringify({
+                action: 'indoorBeaconScan',
+                success: true,
+                data: {
+                    currentArea: inference.currentArea,
+                    confidence: inference.confidence,
+                },
+            }));
+        } catch (err) {
+            this.log.error(`Error handling indoor beacon scan: ${err}`);
+            socket.send(JSON.stringify({ action: 'indoorBeaconScan', error: 'Error handling indoor beacon scan' }));
+        }
+    }
+
     handleHello(socket) {
         socket.send(JSON.stringify({
             action: 'hello',
@@ -460,7 +726,8 @@ class Iobapp extends utils.Adapter {
                     'requestSensorRefresh',
                     'notificationCommands',
                     'diagnostics',
-                    'silentPushWake'
+                    'silentPushWake',
+                    'indoorPositioning'
                 ],
                 supportedActions: [
                     'setDeviceToken',
@@ -479,7 +746,9 @@ class Iobapp extends utils.Adapter {
                     'getActionCatalog',
                     'executeAction',
                     'requestSensorRefresh',
-                    'notificationCommand'
+                    'notificationCommand',
+                    'getIndoorRooms',
+                    'indoorBeaconScan'
                 ]
             }
         }));
@@ -531,6 +800,11 @@ class Iobapp extends utils.Adapter {
                             name: 'Notifications löschen',
                             type: 'notificationCommand'
                         },
+                        {
+                            id: 'request_indoor_scan',
+                            name: 'Indoor-Scan auslösen',
+                            type: 'notificationCommand'
+                        },
                         ...tagActions
                     ]
                 }
@@ -580,7 +854,8 @@ class Iobapp extends utils.Adapter {
             'request_location_update',
             'update_widgets',
             'update_watch',
-            'clear_notification'
+            'clear_notification',
+            'request_indoor_scan'
         ]);
         if (notificationCommands.has(actionId)) {
             socket.send(JSON.stringify({ action: 'notificationCommand', data: { command: actionId, payload: payload || {} } }));
@@ -889,6 +1164,12 @@ class Iobapp extends utils.Adapter {
                     break;
                 case 'notificationAck':
                     this.handleNotificationAck(socket, data);
+                    break;
+                case 'getIndoorRooms':
+                    this.handleGetIndoorRooms(socket);
+                    break;
+                case 'indoorBeaconScan':
+                    this.handleIndoorBeaconScan(socket, data);
                     break;
                 default:
                     this.log.warn(`Unknown action: ${action}`);

@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "news": {
+      "0.2.4": {
+        "en": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
+        "de": "Indoor-Positionierung mit BLE-Beacon-Scans, Raum-Lernen und zentralen Area-Fingerprints ergänzt",
+        "ru": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
+        "pt": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
+        "nl": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
+        "fr": "Ajout de la base de positionnement intérieur avec scans BLE, apprentissage des pièces et empreintes partagées",
+        "it": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
+        "es": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
+        "pl": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
+        "uk": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
+        "zh-cn": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints"
+      },
       "0.2.3": {
         "en": "Add notification priority fields and improve NFC tag routing",
         "de": "Nachrichtentypen ergänzt und NFC-Tag-Routing verbessert",
@@ -198,7 +211,11 @@
     "relayUrl": "https://ios.stoll-mueller.de",
     "relayApiKey": "",
     "wakeAfterMinutes": 10,
-    "minWakeIntervalMinutes": 10
+    "minWakeIntervalMinutes": 10,
+    "indoorEnabled": true,
+    "indoorScanSeconds": 8,
+    "indoorLearningSeconds": 30,
+    "indoorMinimumConfidence": 0.25
   },
   "objects": [],
   "instanceObjects": []

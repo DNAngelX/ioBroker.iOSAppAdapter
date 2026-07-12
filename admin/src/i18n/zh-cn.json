@@ -1,5 +1,11 @@
 {
     "iobapp adapter settings": "iobapp的适配器设置",
     "option1": "选项1",
-    "option2": "选项2"
+    "option2": "选项2",
+    "indoorPositioning": "Indoor positioning",
+    "indoorPositioningHint": "Rooms are read from ioBroker enum.rooms. Learned areas, beacons and fingerprints are stored below iobapp.0.indoor.",
+    "indoorEnabled": "Enable indoor positioning",
+    "indoorScanSeconds": "Scan duration in seconds",
+    "indoorLearningSeconds": "Learning duration in seconds",
+    "indoorMinimumConfidence": "Minimum area confidence"
 }

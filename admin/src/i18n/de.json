@@ -9,5 +9,11 @@
     "relayUrl": "Relay-URL",
     "relayApiKey": "Relay API-Key",
     "wakeAfterMinutes": "Wake nach Minuten ohne Last Seen",
-    "minWakeIntervalMinutes": "Minimaler Abstand zwischen Wake-Pushes"
+    "minWakeIntervalMinutes": "Minimaler Abstand zwischen Wake-Pushes",
+    "indoorPositioning": "Indoor-Positionierung",
+    "indoorPositioningHint": "Räume kommen aus ioBroker enum.rooms. Gelernte Areas, Beacons und Fingerprints werden unter iobapp.0.indoor gespeichert.",
+    "indoorEnabled": "Indoor-Positionierung aktivieren",
+    "indoorScanSeconds": "Scan-Dauer in Sekunden",
+    "indoorLearningSeconds": "Lernphase in Sekunden",
+    "indoorMinimumConfidence": "Minimale Area-Konfidenz"
 }

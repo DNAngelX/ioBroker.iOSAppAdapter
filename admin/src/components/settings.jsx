@@ -8,6 +8,7 @@ import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
+import Typography from "@material-ui/core/Typography";
 import I18n from "@iobroker/adapter-react/i18n";
 
 /**
@@ -160,6 +161,20 @@ class Settings extends React.Component {
 				{this.renderInput("wakeAfterMinutes", "wakeAfterMinutes", "number")}
 				<br />
 				{this.renderInput("minWakeIntervalMinutes", "minWakeIntervalMinutes", "number")}
+				<br />
+				<Typography variant="h6" style={{ marginTop: 24 }}>
+					{I18n.t("indoorPositioning")}
+				</Typography>
+				<Typography variant="body2" color="textSecondary" style={{ marginBottom: 8 }}>
+					{I18n.t("indoorPositioningHint")}
+				</Typography>
+				{this.renderCheckbox("indoorEnabled", "indoorEnabled")}
+				<br />
+				{this.renderInput("indoorScanSeconds", "indoorScanSeconds", "number")}
+				<br />
+				{this.renderInput("indoorLearningSeconds", "indoorLearningSeconds", "number")}
+				<br />
+				{this.renderInput("indoorMinimumConfidence", "indoorMinimumConfidence", "number")}
 			</form>
 		);
 	}
