@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.9",
+    "version": "0.2.10",
     "news": {
+      "0.2.10": {
+        "en": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
+        "de": "Indoor-Dashboard-Listen für Geräte, Areas, Area-Details und Beacons separat scrollbar gemacht",
+        "ru": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
+        "pt": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
+        "nl": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
+        "fr": "Listes du tableau indoor rendues défilables indépendamment pour appareils, zones, détails et balises",
+        "it": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
+        "es": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
+        "pl": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
+        "uk": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
+        "zh-cn": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable"
+      },
       "0.2.9": {
         "en": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
         "de": "Indoor-Admin-Tab korrekt registriert und ioBroker-Räume über schnellen Enum-View-Fallback geladen",

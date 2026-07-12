@@ -14,8 +14,10 @@ const NAMESPACE = "iobapp.0";
 
 const styles = theme => ({
 	root: {
+		boxSizing: "border-box",
 		padding: theme.spacing(3),
-		minHeight: "100vh",
+		height: "100vh",
+		overflowY: "auto",
 		background: theme.palette.type === "dark" ? "#121212" : "#f5f7fb",
 	},
 	header: {
@@ -27,6 +29,33 @@ const styles = theme => ({
 	},
 	card: {
 		height: "100%",
+	},
+	panelCard: {
+		height: "min(62vh, 640px)",
+		minHeight: 360,
+		display: "flex",
+		flexDirection: "column",
+	},
+	beaconCard: {
+		maxHeight: "70vh",
+		display: "flex",
+		flexDirection: "column",
+	},
+	panelContent: {
+		height: "100%",
+		minHeight: 0,
+		display: "flex",
+		flexDirection: "column",
+		"&:last-child": {
+			paddingBottom: theme.spacing(2),
+		},
+	},
+	scrollList: {
+		flex: 1,
+		minHeight: 0,
+		overflowY: "auto",
+		paddingRight: theme.spacing(1),
+		marginTop: theme.spacing(1),
 	},
 	cardTitle: {
 		display: "flex",
@@ -359,8 +388,8 @@ class AdminTab extends React.Component {
 	renderAreaList(areas) {
 		const { classes } = this.props;
 		return (
-			<Card className={classes.card}>
-				<CardContent>
+			<Card className={`${classes.card} ${classes.panelCard}`}>
+				<CardContent className={classes.panelContent}>
 					<Typography variant="h6">{I18n.t("indoorAreas")}</Typography>
 					<div className={classes.formRow}>
 						<TextField
@@ -373,19 +402,21 @@ class AdminTab extends React.Component {
 							{I18n.t("create")}
 						</Button>
 					</div>
-					{areas.length === 0 ? <Typography className={classes.secondary}>{I18n.t("noIndoorAreas")}</Typography> : areas.map(area => (
-						<div
-							key={area.id}
-							className={`${classes.listItem} ${classes.selectableItem} ${area.id === this.state.selectedAreaId ? classes.selectedItem : ""}`}
-							onClick={() => this.setState({ selectedAreaId: area.id })}
-						>
-							<Typography variant="subtitle1">{area.name || area.id}</Typography>
-							<Typography className={classes.secondary}>{area.id}</Typography>
-							<Typography variant="caption" className={classes.secondary}>
-								{area.beaconCount} Fingerprint-Beacons · {area.sampleCount} Samples · {area.lastLearning}
-							</Typography>
-						</div>
-					))}
+					<div className={classes.scrollList}>
+						{areas.length === 0 ? <Typography className={classes.secondary}>{I18n.t("noIndoorAreas")}</Typography> : areas.map(area => (
+							<div
+								key={area.id}
+								className={`${classes.listItem} ${classes.selectableItem} ${area.id === this.state.selectedAreaId ? classes.selectedItem : ""}`}
+								onClick={() => this.setState({ selectedAreaId: area.id })}
+							>
+								<Typography variant="subtitle1">{area.name || area.id}</Typography>
+								<Typography className={classes.secondary}>{area.id}</Typography>
+								<Typography variant="caption" className={classes.secondary}>
+									{area.beaconCount} Fingerprint-Beacons · {area.sampleCount} Samples · {area.lastLearning}
+								</Typography>
+							</div>
+						))}
+					</div>
 				</CardContent>
 			</Card>
 		);
@@ -394,39 +425,41 @@ class AdminTab extends React.Component {
 	renderAreaDetails(area, beaconById) {
 		const { classes } = this.props;
 		return (
-			<Card className={classes.card}>
-				<CardContent>
+			<Card className={`${classes.card} ${classes.panelCard}`}>
+				<CardContent className={classes.panelContent}>
 					<Typography variant="h6">{I18n.t("indoorAreaDetails")}</Typography>
-					{!area ? (
-						<Typography className={classes.secondary}>{I18n.t("selectIndoorArea")}</Typography>
-					) : (
-						<>
-							<Typography variant="subtitle1">{area.name || area.id}</Typography>
-							<Typography className={classes.secondary}>{area.id}</Typography>
-							{area.fingerprint.beacons.length === 0 ? (
-								<Typography className={classes.secondary}>{I18n.t("emptyFingerprint")}</Typography>
-							) : area.fingerprint.beacons.map(beacon => {
-								const knownBeacon = beaconById.get(beacon.id);
-								return (
-									<div key={beacon.id} className={classes.fingerprintBeacon}>
-										<div>
-											<Typography variant="subtitle2">
-												{knownBeacon ? knownBeacon.name : beacon.name || beacon.id}
-												{knownBeacon ? <Chip size="small" className={classes.chip} label={knownBeacon.classification} /> : null}
-											</Typography>
-											<Typography className={`${classes.secondary} ${classes.mono}`}>{beacon.id}</Typography>
-											<Typography variant="caption" className={classes.secondary}>
-												RSSI Ø {beacon.averageRssi} · Max {beacon.maxRssi} · Samples {beacon.count || 1}
-											</Typography>
+					<div className={classes.scrollList}>
+						{!area ? (
+							<Typography className={classes.secondary}>{I18n.t("selectIndoorArea")}</Typography>
+						) : (
+							<>
+								<Typography variant="subtitle1">{area.name || area.id}</Typography>
+								<Typography className={classes.secondary}>{area.id}</Typography>
+								{area.fingerprint.beacons.length === 0 ? (
+									<Typography className={classes.secondary}>{I18n.t("emptyFingerprint")}</Typography>
+								) : area.fingerprint.beacons.map(beacon => {
+									const knownBeacon = beaconById.get(beacon.id);
+									return (
+										<div key={beacon.id} className={classes.fingerprintBeacon}>
+											<div>
+												<Typography variant="subtitle2">
+													{knownBeacon ? knownBeacon.name : beacon.name || beacon.id}
+													{knownBeacon ? <Chip size="small" className={classes.chip} label={knownBeacon.classification} /> : null}
+												</Typography>
+												<Typography className={`${classes.secondary} ${classes.mono}`}>{beacon.id}</Typography>
+												<Typography variant="caption" className={classes.secondary}>
+													RSSI Ø {beacon.averageRssi} · Max {beacon.maxRssi} · Samples {beacon.count || 1}
+												</Typography>
+											</div>
+											<Button size="small" disabled={this.state.saving} onClick={() => this.removeBeaconFromArea(area, beacon.id)}>
+												{I18n.t("remove")}
+											</Button>
 										</div>
-										<Button size="small" disabled={this.state.saving} onClick={() => this.removeBeaconFromArea(area, beacon.id)}>
-											{I18n.t("remove")}
-										</Button>
-									</div>
-								);
-							})}
-						</>
-					)}
+									);
+								})}
+							</>
+						)}
+					</div>
 				</CardContent>
 			</Card>
 		);
@@ -435,54 +468,56 @@ class AdminTab extends React.Component {
 	renderBeaconManager(beacons, areas) {
 		const { classes } = this.props;
 		return (
-			<Card>
-				<CardContent>
+			<Card className={classes.beaconCard}>
+				<CardContent className={classes.panelContent}>
 					<div className={classes.cardTitle}>
 						<Typography variant="h6">{I18n.t("indoorBeacons")}</Typography>
 						<Typography variant="body2" className={classes.secondary}>{I18n.t("indoorBeaconManagementHint")}</Typography>
 					</div>
-					{beacons.length === 0 ? <Typography className={classes.secondary}>{I18n.t("noIndoorBeacons")}</Typography> : beacons.map(beacon => (
-						<div key={beacon.id} className={classes.listItem}>
-							<Typography variant="subtitle1">{beacon.name}</Typography>
-							<Typography className={`${classes.secondary} ${classes.mono}`}>{beacon.id}</Typography>
-							<Typography variant="caption" className={classes.secondary}>
-								RSSI {beacon.rssi} · {beacon.lastSeen}
-							</Typography>
-							<div className={classes.controlRow}>
-								<TextField
-									label={I18n.t("displayName")}
-									defaultValue={beacon.name}
-									onBlur={event => this.updateBeaconState(beacon.id, "display_name", event.target.value)}
-									disabled={this.state.saving}
-								/>
-								<TextField
-									select
-									label={I18n.t("classification")}
-									value={beacon.classification}
-									onChange={event => this.updateBeaconState(beacon.id, "classification", event.target.value)}
-									disabled={this.state.saving}
-								>
-									<MenuItem value="unknown">{I18n.t("beaconUnknown")}</MenuItem>
-									<MenuItem value="fixed">{I18n.t("beaconFixed")}</MenuItem>
-									<MenuItem value="mobile">{I18n.t("beaconMobile")}</MenuItem>
-									<MenuItem value="ignored">{I18n.t("beaconIgnored")}</MenuItem>
-								</TextField>
-								<TextField
-									select
-									label={I18n.t("assignedArea")}
-									value={beacon.assignedArea}
-									onChange={event => this.updateBeaconState(beacon.id, "assigned_area", event.target.value)}
-									disabled={this.state.saving}
-								>
-									<MenuItem value="">{I18n.t("none")}</MenuItem>
-									{areas.map(area => <MenuItem key={area.id} value={area.id}>{area.name || area.id}</MenuItem>)}
-								</TextField>
-								<Button size="small" disabled={this.state.saving} onClick={() => this.updateBeaconState(beacon.id, "classification", "ignored")}>
-									{I18n.t("ignore")}
-								</Button>
+					<div className={classes.scrollList}>
+						{beacons.length === 0 ? <Typography className={classes.secondary}>{I18n.t("noIndoorBeacons")}</Typography> : beacons.map(beacon => (
+							<div key={beacon.id} className={classes.listItem}>
+								<Typography variant="subtitle1">{beacon.name}</Typography>
+								<Typography className={`${classes.secondary} ${classes.mono}`}>{beacon.id}</Typography>
+								<Typography variant="caption" className={classes.secondary}>
+									RSSI {beacon.rssi} · {beacon.lastSeen}
+								</Typography>
+								<div className={classes.controlRow}>
+									<TextField
+										label={I18n.t("displayName")}
+										defaultValue={beacon.name}
+										onBlur={event => this.updateBeaconState(beacon.id, "display_name", event.target.value)}
+										disabled={this.state.saving}
+									/>
+									<TextField
+										select
+										label={I18n.t("classification")}
+										value={beacon.classification}
+										onChange={event => this.updateBeaconState(beacon.id, "classification", event.target.value)}
+										disabled={this.state.saving}
+									>
+										<MenuItem value="unknown">{I18n.t("beaconUnknown")}</MenuItem>
+										<MenuItem value="fixed">{I18n.t("beaconFixed")}</MenuItem>
+										<MenuItem value="mobile">{I18n.t("beaconMobile")}</MenuItem>
+										<MenuItem value="ignored">{I18n.t("beaconIgnored")}</MenuItem>
+									</TextField>
+									<TextField
+										select
+										label={I18n.t("assignedArea")}
+										value={beacon.assignedArea}
+										onChange={event => this.updateBeaconState(beacon.id, "assigned_area", event.target.value)}
+										disabled={this.state.saving}
+									>
+										<MenuItem value="">{I18n.t("none")}</MenuItem>
+										{areas.map(area => <MenuItem key={area.id} value={area.id}>{area.name || area.id}</MenuItem>)}
+									</TextField>
+									<Button size="small" disabled={this.state.saving} onClick={() => this.updateBeaconState(beacon.id, "classification", "ignored")}>
+										{I18n.t("ignore")}
+									</Button>
+								</div>
 							</div>
-						</div>
-					))}
+						))}
+					</div>
 				</CardContent>
 			</Card>
 		);
@@ -516,21 +551,23 @@ class AdminTab extends React.Component {
 					<Grid item xs={12} md={4}>{this.renderSummaryCard(I18n.t("indoorDevices"), devices.length, lastRefresh ? lastRefresh.toLocaleTimeString() : "—")}</Grid>
 
 					<Grid item xs={12} lg={4}>
-						<Card className={classes.card}>
-							<CardContent>
+						<Card className={`${classes.card} ${classes.panelCard}`}>
+							<CardContent className={classes.panelContent}>
 								<Typography variant="h6">{I18n.t("indoorDevices")}</Typography>
-								{devices.length === 0 ? <Typography className={classes.secondary}>{I18n.t("noIndoorDevices")}</Typography> : devices.map(device => (
-									<div key={device.id} className={classes.listItem}>
-										<Typography variant="subtitle1">{device.person} · {device.device}</Typography>
-										<Typography className={classes.secondary}>
-											{I18n.t("currentArea")}: {device.currentArea || "—"}
-											<Chip size="small" className={classes.chip} label={`${Math.round(Number(device.confidence) * 100)}%`} />
-										</Typography>
-										<Typography variant="caption" className={classes.secondary}>
-											{device.lastScan} · {device.trigger} · {device.beaconCount} Beacons
-										</Typography>
-									</div>
-								))}
+								<div className={classes.scrollList}>
+									{devices.length === 0 ? <Typography className={classes.secondary}>{I18n.t("noIndoorDevices")}</Typography> : devices.map(device => (
+										<div key={device.id} className={classes.listItem}>
+											<Typography variant="subtitle1">{device.person} · {device.device}</Typography>
+											<Typography className={classes.secondary}>
+												{I18n.t("currentArea")}: {device.currentArea || "—"}
+												<Chip size="small" className={classes.chip} label={`${Math.round(Number(device.confidence) * 100)}%`} />
+											</Typography>
+											<Typography variant="caption" className={classes.secondary}>
+												{device.lastScan} · {device.trigger} · {device.beaconCount} Beacons
+											</Typography>
+										</div>
+									))}
+								</div>
 							</CardContent>
 						</Card>
 					</Grid>
