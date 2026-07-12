@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "news": {
+      "0.2.5": {
+        "en": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
+        "de": "Materialize-Settings-UI korrigiert und ioBroker-Admin-Tab für Indoor-Positionierung ergänzt",
+        "ru": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
+        "pt": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
+        "nl": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
+        "fr": "Correction du chargement de l'interface Materialize et ajout d'un onglet admin ioBroker pour le positionnement intérieur",
+        "it": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
+        "es": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
+        "pl": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
+        "uk": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
+        "zh-cn": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning"
+      },
       "0.2.4": {
         "en": "Add indoor positioning foundation with BLE beacon scans, room learning and shared area fingerprints",
         "de": "Indoor-Positionierung mit BLE-Beacon-Scans, Raum-Lernen und zentralen Area-Fingerprints ergänzt",
@@ -189,7 +202,8 @@
     "connectionType": "local",
     "dataSource": "poll",
     "adminUI": {
-      "config": "materialize"
+      "config": "materialize",
+      "tab": "materialize"
     },
     "eraseOnUpload": true,
     "dependencies": [

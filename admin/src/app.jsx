@@ -3,6 +3,7 @@ import { withStyles } from "@material-ui/core/styles";
 
 import GenericApp from "@iobroker/adapter-react/GenericApp";
 import Settings from "./components/settings";
+import AdminTab from "./components/adminTab";
 
 /**
  * @type {(_theme: import("@material-ui/core/styles").Theme) => import("@material-ui/styles").StyleRules}
@@ -44,10 +45,16 @@ class App extends GenericApp {
 
 		return (
 			<div className="App">
-				<Settings native={this.state.native} onChange={(attr, value) => this.updateNativeValue(attr, value)} />
+				{this.props.isTab ? (
+					<AdminTab socket={this.socket} />
+				) : (
+					<>
+						<Settings native={this.state.native} onChange={(attr, value) => this.updateNativeValue(attr, value)} />
+						{this.renderSaveCloseButtons()}
+					</>
+				)}
 				{this.renderError()}
 				{this.renderToast()}
-				{this.renderSaveCloseButtons()}
 			</div>
 		);
 	}

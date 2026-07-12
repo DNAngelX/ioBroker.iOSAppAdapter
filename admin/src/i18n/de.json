@@ -15,5 +15,17 @@
     "indoorEnabled": "Indoor-Positionierung aktivieren",
     "indoorScanSeconds": "Scan-Dauer in Sekunden",
     "indoorLearningSeconds": "Lernphase in Sekunden",
-    "indoorMinimumConfidence": "Minimale Area-Konfidenz"
+    "indoorMinimumConfidence": "Minimale Area-Konfidenz",
+    "indoorDashboard": "iOS Indoor-Dashboard",
+    "indoorDashboardHint": "Übersicht über gelernte Areas, erkannte BLE-Beacons und Raum-Schätzungen der Geräte.",
+    "refresh": "Aktualisieren",
+    "indoorAreas": "Areas",
+    "indoorAreasHint": "Gelernte Fingerprints aus iPhone-Scans.",
+    "indoorBeacons": "Beacons",
+    "indoorBeaconsHint": "BLE-Geräte, die von der iOS-App erkannt wurden.",
+    "indoorDevices": "Geräte",
+    "noIndoorDevices": "Noch kein Gerät hat Indoor-Positionsdaten gesendet.",
+    "noIndoorAreas": "Noch keine Area gelernt. Starte das Lernen in der iOS-App.",
+    "noIndoorBeacons": "Noch kein BLE-Beacon erkannt.",
+    "currentArea": "Aktuelle Area"
 }

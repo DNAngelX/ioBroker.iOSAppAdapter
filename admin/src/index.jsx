@@ -12,6 +12,7 @@ function build() {
 		<MuiThemeProvider theme={theme(themeName)}>
 			<App
 				adapterName="iobapp"
+				isTab={window.__IOBAPP_TAB__ === true}
 				onThemeChange={(_theme) => {
 					themeName = _theme;
 					build();
