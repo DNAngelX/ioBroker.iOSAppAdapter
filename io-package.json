@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.8",
+    "version": "0.2.9",
     "news": {
+      "0.2.9": {
+        "en": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
+        "de": "Indoor-Admin-Tab korrekt registriert und ioBroker-Räume über schnellen Enum-View-Fallback geladen",
+        "ru": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
+        "pt": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
+        "nl": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
+        "fr": "Enregistrement correct de l'onglet d'administration indoor et chargement des pièces ioBroker via un repli rapide enum view",
+        "it": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
+        "es": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
+        "pl": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
+        "uk": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback",
+        "zh-cn": "Register the indoor admin tab correctly and load ioBroker rooms through a fast enum view fallback"
+      },
       "0.2.8": {
         "en": "Add indoor area and beacon management UI with learned area fallback for the iOS app",
         "de": "Indoor-Area- und Beacon-Verwaltung mit Fallback auf gelernte Areas für die iOS-App ergänzt",
@@ -243,6 +256,15 @@
     "adminUI": {
       "config": "materialize",
       "tab": "materialize"
+    },
+    "adminTab": {
+      "name": {
+        "en": "iOS App",
+        "de": "iOS App"
+      },
+      "link": "",
+      "singleton": true,
+      "fa-icon": "mobile"
     },
     "eraseOnUpload": true,
     "dependencies": [

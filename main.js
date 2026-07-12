@@ -507,8 +507,7 @@ class Iobapp extends utils.Adapter {
 
     async handleGetIndoorRooms(socket) {
         try {
-            const objects = await this.getForeignObjectsAsync('enum.rooms.*');
-            const rooms = Object.entries(objects || {})
+            const rooms = (await this.loadEnumRoomOptions())
                 .map(([id, object]) => ({
                     id: this.normalizeObjectSegment(id.replace(/^enum\.rooms\./, ''), 'room'),
                     name: this.translatedName(object && object.common && object.common.name) || id.split('.').pop(),
@@ -529,6 +528,31 @@ class Iobapp extends utils.Adapter {
             this.log.error(`Error getting indoor rooms: ${err}`);
             socket.send(JSON.stringify({ action: 'getIndoorRooms', error: 'Error getting indoor rooms' }));
         }
+    }
+
+    async loadEnumRoomOptions() {
+        let objects = await this.getForeignObjectsAsync('enum.rooms.*');
+        if (objects && Object.keys(objects).length) {
+            return Object.entries(objects);
+        }
+
+        if (typeof this.getObjectViewAsync !== 'function') {
+            return [];
+        }
+
+        const view = await this.getObjectViewAsync('system', 'enum', {
+            startkey: 'enum.rooms.',
+            endkey: 'enum.rooms.\u9999',
+        });
+
+        if (view && Array.isArray(view.rows)) {
+            return view.rows
+                .filter(row => row && row.id && row.id.startsWith('enum.rooms.'))
+                .map(row => [row.id, row.value]);
+        }
+
+        return Object.entries(view || {})
+            .filter(([id]) => id.startsWith('enum.rooms.'));
     }
 
     async loadIndoorAreaOptions() {

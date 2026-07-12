@@ -6,6 +6,7 @@ import FormHelperText from "@material-ui/core/FormHelperText";
 import FormControl from "@material-ui/core/FormControl";
 import Select from "@material-ui/core/Select";
 import MenuItem from "@material-ui/core/MenuItem";
+import Button from "@material-ui/core/Button";
 import FormControlLabel from "@material-ui/core/FormControlLabel";
 import Checkbox from "@material-ui/core/Checkbox";
 import Typography from "@material-ui/core/Typography";
@@ -161,6 +162,11 @@ class Settings extends React.Component {
 		);
 	}
 
+	openIndoorDashboard = () => {
+		const pathname = window.location.pathname.replace(/index_m\.html$/, "tab_m.html");
+		window.location.href = `${pathname}${window.location.search || ""}`;
+	};
+
 	render() {
 		return (
 			<form className={this.props.classes.tab}>
@@ -193,6 +199,10 @@ class Settings extends React.Component {
 				{this.renderInput("indoorLearningSeconds", "indoorLearningSeconds", "number")}
 				<br />
 				{this.renderInput("indoorMinimumConfidence", "indoorMinimumConfidence", "number")}
+				<br />
+				<Button variant="contained" color="primary" onClick={this.openIndoorDashboard}>
+					{I18n.t("openIndoorDashboard")}
+				</Button>
 			</form>
 		);
 	}

@@ -1,6 +1,8 @@
 "use strict";
 
 const { expect } = require("chai");
+const { readFileSync } = require("fs");
+const { join } = require("path");
 const proxyquire = require("proxyquire").noCallThru();
 
 class FakeAdapter {
@@ -40,6 +42,22 @@ function makeSocket() {
 }
 
 describe("Protocol v2 WebSocket contract", () => {
+	it("registers the materialize admin tab for indoor management", () => {
+		const ioPackage = JSON.parse(readFileSync(join(__dirname, "io-package.json"), "utf8"));
+
+		expect(ioPackage.common.adminUI).to.deep.include({
+			config: "materialize",
+			tab: "materialize",
+		});
+		expect(ioPackage.common.adminTab).to.deep.include({
+			singleton: true,
+		});
+		expect(ioPackage.common.adminTab.name).to.deep.include({
+			en: "iOS App",
+			de: "iOS App",
+		});
+	});
+
 	it("responds to hello with versioned capabilities", () => {
 		const adapter = makeAdapter();
 		const socket = makeSocket();
@@ -265,6 +283,50 @@ describe("Protocol v2 WebSocket contract", () => {
 					rooms: [
 						{ id: "cheerroom", name: "Cheerroom", source: "indoorArea" },
 						{ id: "sofa-ecke", name: "Sofa Ecke", source: "indoorArea" },
+					],
+				},
+			},
+		]);
+	});
+
+	it("falls back to the enum object view when room pattern lookup is empty", async () => {
+		const adapter = makeAdapter();
+		adapter.getForeignObjectsAsync = async pattern => {
+			expect(pattern).to.equal("enum.rooms.*");
+			return {};
+		};
+		adapter.getObjectViewAsync = async (design, search, params) => {
+			expect(design).to.equal("system");
+			expect(search).to.equal("enum");
+			expect(params).to.deep.equal({
+				startkey: "enum.rooms.",
+				endkey: "enum.rooms.\u9999",
+			});
+			return {
+				rows: [
+					{
+						id: "enum.rooms.buero-jan",
+						value: { common: { name: "Büro Jan" } },
+					},
+					{
+						id: "enum.rooms.kueche",
+						value: { common: { name: { en: "Kitchen", de: "Küche" } } },
+					},
+				],
+			};
+		};
+		adapter.getStatesAsync = async () => ({});
+		const socket = makeSocket();
+
+		await adapter.handleGetIndoorRooms(socket);
+
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "getIndoorRooms",
+				data: {
+					rooms: [
+						{ id: "buero-jan", name: "Büro Jan" },
+						{ id: "kueche", name: "Küche" },
 					],
 				},
 			},

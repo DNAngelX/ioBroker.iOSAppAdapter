@@ -150,16 +150,33 @@ class AdminTab extends React.Component {
 		}
 	}
 
+	getObjectRange(socket, start, type) {
+		return socket.getObjectView(start, `${start}\u9999`, type);
+	}
+
+	async getStateRange(socket, pattern) {
+		if (typeof socket.getForeignStates === "function") {
+			return socket.getForeignStates(pattern);
+		}
+		return socket.getStates(true);
+	}
+
 	refresh = async () => {
 		const { socket } = this.props;
 		if (!socket) return;
 
 		this.setState({ loading: true, error: "" });
 		try {
-			const [objects, states] = await Promise.all([
-				socket.getObjects(true, true),
-				socket.getStates(true),
+			const [indoorChannels, indoorStates, personIndoorStates] = await Promise.all([
+				this.getObjectRange(socket, `${NAMESPACE}.indoor.`, "channel"),
+				this.getStateRange(socket, `${NAMESPACE}.indoor.*`),
+				this.getStateRange(socket, `${NAMESPACE}.person.*.*.indoor.*`),
 			]);
+			const objects = indoorChannels || {};
+			const states = {
+				...(indoorStates || {}),
+				...(personIndoorStates || {}),
+			};
 			const beacons = this.collectBeacons(objects, states);
 			const areas = this.collectAreas(objects, states);
 			const selectedAreaId = areas.some(area => area.id === this.state.selectedAreaId)
