@@ -960,17 +960,80 @@ class Iobapp extends utils.Adapter {
     }
     
 
-    async generatePayload(id) {
-        const [namespace, person, device, ...rest] = id.split('.').slice(2);
-        let basePath;
-    
-        if (person === 'send') {
-            basePath = `${this.namespace}.messages`;
-        }  else if (device === 'messages') {
-            basePath = `${this.namespace}.person.${person}.messages`;
-        } else {
-            basePath = `${this.namespace}.person.${person}.${device}.messages`;
+    parseMessagePath(id) {
+        const prefix = `${this.namespace}.`;
+        if (!id || !id.startsWith(prefix)) {
+            return null;
         }
+
+        const parts = id.slice(prefix.length).split('.');
+        if (parts[0] === 'messages' && parts.length >= 2) {
+            return {
+                scope: 'global',
+                field: parts[1],
+                basePath: `${this.namespace}.messages`,
+            };
+        }
+
+        if (parts[0] !== 'person' || parts.length < 4) {
+            return null;
+        }
+
+        const person = parts[1];
+        if (parts[2] === 'messages') {
+            return {
+                scope: 'person',
+                person,
+                field: parts[3],
+                basePath: `${this.namespace}.person.${person}.messages`,
+            };
+        }
+
+        if (parts[3] === 'messages' && parts.length >= 5) {
+            const device = parts[2];
+            return {
+                scope: 'device',
+                person,
+                device,
+                field: parts[4],
+                basePath: `${this.namespace}.person.${person}.${device}.messages`,
+            };
+        }
+
+        return null;
+    }
+
+    extractClientIdsFromStates(states) {
+        return Object.entries(states || {})
+            .filter(([id]) => !id.endsWith('.messages.ws_device_id'))
+            .map(([, state]) => state && state.val)
+            .filter(val => val)
+            .map(val => String(val));
+    }
+
+    async getMessageTargetClientIds(target) {
+        if (target.scope === 'global') {
+            const allDeviceStates = await this.getStatesAsync(`${this.namespace}.person.*.*.ws_device_id`);
+            return this.extractClientIdsFromStates(allDeviceStates);
+        }
+
+        if (target.scope === 'person') {
+            const deviceStates = await this.getStatesAsync(`${this.namespace}.person.${target.person}.*.ws_device_id`);
+            return this.extractClientIdsFromStates(deviceStates);
+        }
+
+        const deviceState = await this.getStateAsync(`${this.namespace}.person.${target.person}.${target.device}.ws_device_id`);
+        return deviceState && deviceState.val ? [String(deviceState.val)] : [];
+    }
+
+    async generatePayload(id) {
+        const target = this.parseMessagePath(id);
+        if (!target || target.field !== 'send') {
+            this.log.warn(`Cannot generate APN payload for unknown message path: ${id}`);
+            return;
+        }
+
+        const basePath = target.basePath;
         this.log.debug(`namespace ${basePath}`);
         try {
             const titleState = await this.getStateAsync(`${basePath}.title`);
@@ -1018,22 +1081,14 @@ class Iobapp extends utils.Adapter {
     }
 
     async handleAPNMessage(id) {
-        const [namespace, person, device, ...rest] = id.split('.').slice(2);
-        let basePath, clientIds;
-        
-        if (device === 'messages') {
-            basePath = `${this.namespace}.person.${person}.messages`;
-            const deviceStates = await this.getStatesAsync(`${this.namespace}.person.${person}.*.ws_device_id`);
-            clientIds = Object.values(deviceStates).map(state => state.val).filter(val => val);
-        } else if (person === 'payload') {
-            basePath = `${this.namespace}.messages`;
-            const allDeviceStates = await this.getStatesAsync(`${this.namespace}.person.*.*.ws_device_id`);
-            clientIds = Object.values(allDeviceStates).map(state => state.val).filter(val => val);
-        } else {
-            basePath = `${this.namespace}.person.${person}.${device}.messages`;
-            const deviceState = await this.getStateAsync(`${this.namespace}.person.${person}.${device}.ws_device_id`);
-            clientIds = deviceState ? [deviceState.val] : [];
+        const target = this.parseMessagePath(id);
+        if (!target || target.field !== 'payload') {
+            this.log.warn(`Cannot handle APN payload for unknown message path: ${id}`);
+            return;
         }
+
+        const basePath = target.basePath;
+        const clientIds = await this.getMessageTargetClientIds(target);
     
         try {
             const payloadState = await this.getStateAsync(`${basePath}.payload`);
@@ -1063,7 +1118,7 @@ class Iobapp extends utils.Adapter {
                 this.log.warn(`Cannot send APN message, missing payload for ${basePath}`);
             }
         } catch (err) {
-            this.log.error(`Error handling APN message for ${person === 'messages' ? 'general' : `${person}'s ${device}`}: ${err.message}`);
+            this.log.error(`Error handling APN message for ${basePath}: ${err.message}`);
         }
     }
 

@@ -203,3 +203,155 @@ describe("Protocol v2 WebSocket contract", () => {
 		]);
 	});
 });
+
+describe("APN message routing", () => {
+	function configureNotificationAdapter(adapter, options = {}) {
+		const payload = options.payload || {
+			aps: {
+				alert: {
+					title: "Test",
+					body: "Message",
+				},
+			},
+		};
+		const statesByPattern = options.statesByPattern || {};
+		const statesById = {
+			"iobapp.0.person.Jan.iPhone.ws_device_id": { val: "jan-phone" },
+			"iobapp.0.person.Jan.iPhone.messages.payload": { val: JSON.stringify(payload) },
+			"iobapp.0.person.Jan.messages.payload": { val: JSON.stringify(payload) },
+			"iobapp.0.messages.payload": { val: JSON.stringify(payload) },
+			...(options.statesById || {}),
+		};
+		const sentClientIds = [];
+		const setStates = [];
+
+		adapter.getStateAsync = async id => statesById[id] || null;
+		adapter.getStatesAsync = async pattern => statesByPattern[pattern] || {};
+		adapter.setStateAsync = async (id, val, ack) => {
+			setStates.push({ id, val, ack });
+		};
+		adapter.sendMessageToClient = (clientId, message) => {
+			sentClientIds.push({ clientId, message });
+			return true;
+		};
+
+		return { sentClientIds, setStates, payload };
+	}
+
+	it("routes device messages only to the selected device", async () => {
+		const adapter = makeAdapter();
+		const { sentClientIds, setStates, payload } = configureNotificationAdapter(adapter);
+
+		await adapter.handleAPNMessage("iobapp.0.person.Jan.iPhone.messages.payload");
+
+		expect(sentClientIds).to.deep.equal([
+			{
+				clientId: "jan-phone",
+				message: { action: "notification", payload },
+			},
+		]);
+		expect(setStates).to.deep.equal([
+			{ id: "iobapp.0.person.Jan.iPhone.messages.payload", val: "", ack: true },
+		]);
+	});
+
+	it("routes person messages to all devices of that person", async () => {
+		const adapter = makeAdapter();
+		const { sentClientIds, setStates, payload } = configureNotificationAdapter(adapter, {
+			statesByPattern: {
+				"iobapp.0.person.Jan.*.ws_device_id": {
+					"iobapp.0.person.Jan.iPhone.ws_device_id": { val: "jan-phone" },
+					"iobapp.0.person.Jan.Watch.ws_device_id": { val: "jan-watch" },
+					"iobapp.0.person.Jan.messages.ws_device_id": { val: "not-a-device" },
+				},
+			},
+		});
+
+		await adapter.handleAPNMessage("iobapp.0.person.Jan.messages.payload");
+
+		expect(sentClientIds).to.deep.equal([
+			{
+				clientId: "jan-phone",
+				message: { action: "notification", payload },
+			},
+			{
+				clientId: "jan-watch",
+				message: { action: "notification", payload },
+			},
+		]);
+		expect(setStates).to.deep.equal([
+			{ id: "iobapp.0.person.Jan.messages.payload", val: "", ack: true },
+		]);
+	});
+
+	it("routes global messages to every registered device", async () => {
+		const adapter = makeAdapter();
+		const { sentClientIds, setStates, payload } = configureNotificationAdapter(adapter, {
+			statesByPattern: {
+				"iobapp.0.person.*.*.ws_device_id": {
+					"iobapp.0.person.Jan.iPhone.ws_device_id": { val: "jan-phone" },
+					"iobapp.0.person.Jan.Watch.ws_device_id": { val: "jan-watch" },
+					"iobapp.0.person.Eva.iPhone.ws_device_id": { val: "eva-phone" },
+					"iobapp.0.person.Jan.messages.ws_device_id": { val: "not-a-device" },
+				},
+			},
+		});
+
+		await adapter.handleAPNMessage("iobapp.0.messages.payload");
+
+		expect(sentClientIds).to.deep.equal([
+			{
+				clientId: "jan-phone",
+				message: { action: "notification", payload },
+			},
+			{
+				clientId: "jan-watch",
+				message: { action: "notification", payload },
+			},
+			{
+				clientId: "eva-phone",
+				message: { action: "notification", payload },
+			},
+		]);
+		expect(setStates).to.deep.equal([
+			{ id: "iobapp.0.messages.payload", val: "", ack: true },
+		]);
+	});
+
+	it("generates payloads for person-level message forms", async () => {
+		const adapter = makeAdapter();
+		const setStates = [];
+		const statesById = {
+			"iobapp.0.person.Jan.messages.title": { val: "Titel" },
+			"iobapp.0.person.Jan.messages.subtitle": { val: "" },
+			"iobapp.0.person.Jan.messages.body": { val: "Text" },
+			"iobapp.0.person.Jan.messages.body-html": { val: "" },
+			"iobapp.0.person.Jan.messages.sound": { val: "default" },
+			"iobapp.0.person.Jan.messages.media-url": { val: "" },
+			"iobapp.0.person.Jan.messages.image-url": { val: "" },
+			"iobapp.0.person.Jan.messages.video-url": { val: "" },
+		};
+		adapter.getStateAsync = async id => statesById[id] || null;
+		adapter.setStateAsync = async (id, val, ack) => {
+			setStates.push({ id, val: JSON.parse(val), ack });
+		};
+
+		await adapter.generatePayload("iobapp.0.person.Jan.messages.send");
+
+		expect(setStates).to.deep.equal([
+			{
+				id: "iobapp.0.person.Jan.messages.payload",
+				val: {
+					aps: {
+						alert: {
+							title: "Titel",
+							body: "Text",
+						},
+						sound: "default",
+					},
+				},
+				ack: true,
+			},
+		]);
+	});
+});

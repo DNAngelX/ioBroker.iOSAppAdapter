@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "news": {
+      "0.2.2": {
+        "en": "Fix person and global notification routing",
+        "de": "Nachrichten-Routing für Personen und globale Nachrichten korrigiert",
+        "ru": "Fix person and global notification routing",
+        "pt": "Fix person and global notification routing",
+        "nl": "Fix person and global notification routing",
+        "fr": "Correction du routage des notifications par personne et globales",
+        "it": "Fix person and global notification routing",
+        "es": "Fix person and global notification routing",
+        "pl": "Fix person and global notification routing",
+        "uk": "Fix person and global notification routing",
+        "zh-cn": "Fix person and global notification routing"
+      },
       "0.2.1": {
         "en": "UI Fix",
         "de": "UI Fix",
