@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "news": {
+      "0.2.6": {
+        "en": "Fix admin UI startup with the materialize GenericApp translation set",
+        "de": "Admin-UI-Start mit dem Materialize-GenericApp-Translation-Set korrigiert",
+        "ru": "Fix admin UI startup with the materialize GenericApp translation set",
+        "pt": "Fix admin UI startup with the materialize GenericApp translation set",
+        "nl": "Fix admin UI startup with the materialize GenericApp translation set",
+        "fr": "Correction du démarrage de l'interface admin avec le jeu de traductions GenericApp Materialize",
+        "it": "Fix admin UI startup with the materialize GenericApp translation set",
+        "es": "Fix admin UI startup with the materialize GenericApp translation set",
+        "pl": "Fix admin UI startup with the materialize GenericApp translation set",
+        "uk": "Fix admin UI startup with the materialize GenericApp translation set",
+        "zh-cn": "Fix admin UI startup with the materialize GenericApp translation set"
+      },
       "0.2.5": {
         "en": "Fix materialize settings UI loading and add an ioBroker admin tab for indoor positioning",
         "de": "Materialize-Settings-UI korrigiert und ioBroker-Admin-Tab für Indoor-Positionierung ergänzt",
