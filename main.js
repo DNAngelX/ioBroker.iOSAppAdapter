@@ -22,6 +22,7 @@ class Iobapp extends utils.Adapter {
         this.messageQueue = new Map(); // Queue for messages to be sent later
         this.clients = new Map(); // Store clients with their IDs
         this.relayWakeInterval = null;
+        this.indoorOccupancyInterval = null;
         this.relayLastWakeByDevice = new Map();
     }
 
@@ -43,6 +44,7 @@ class Iobapp extends utils.Adapter {
 
         this.initializeWebSocket(wsPort);
         this.startRelayWakeMonitor();
+        this.startIndoorOccupancyExpiryMonitor();
         await this.ensureIndoorBeaconMetadataObjects();
 
         this.subscribeStates('*');
@@ -64,6 +66,10 @@ class Iobapp extends utils.Adapter {
             if (this.relayWakeInterval) {
                 clearInterval(this.relayWakeInterval);
                 this.relayWakeInterval = null;
+            }
+            if (this.indoorOccupancyInterval) {
+                clearInterval(this.indoorOccupancyInterval);
+                this.indoorOccupancyInterval = null;
             }
             callback();
         } catch (e) {
@@ -691,7 +697,8 @@ class Iobapp extends utils.Adapter {
                 areaName: fingerprint.areaName,
                 overlap,
                 score,
-                confidence: overlap > 0 ? Math.round((score / (overlap * 100)) * 100) / 100 : 0,
+                confidence: fingerprint.beacons.length > 0 ? Math.round((score / (fingerprint.beacons.length * 100)) * 100) / 100 : 0,
+                coverage: fingerprint.beacons.length > 0 ? Math.round((overlap / fingerprint.beacons.length) * 100) / 100 : 0,
             };
         })
             .filter(candidate => candidate.overlap > 0)
@@ -699,10 +706,89 @@ class Iobapp extends utils.Adapter {
 
         const best = candidates[0] || null;
         return {
-            currentArea: best && best.confidence >= 0.25 ? best.areaId : '',
+            currentArea: best && best.confidence >= 0.25 && (best.overlap >= 2 || best.coverage >= 0.8) ? best.areaId : '',
             confidence: best ? best.confidence : 0,
             candidates,
         };
+    }
+
+    async ensureIndoorAreaOccupancyObjects(areaId, areaName, personId = '') {
+        if (!areaId) return;
+        const areaBase = `${this.namespace}.indoor.areas.${areaId}`;
+        await this.ensureChannel(areaBase, areaName || areaId);
+        await this.ensureState(`${areaBase}.name`, 'Area name', 'string', 'text', true);
+        await this.ensureChannel(`${areaBase}.settings`, 'Area settings');
+        await this.ensureState(`${areaBase}.settings.presence_timeout_minutes`, 'Presence timeout minutes', 'number', 'value', true);
+        await this.ensureChannel(`${areaBase}.occupancy`, 'Area occupancy');
+        await this.ensureState(`${areaBase}.occupancy.present_count`, 'Present count', 'number', 'value');
+        await this.ensureState(`${areaBase}.occupancy.persons_text`, 'Present persons', 'string', 'text');
+        await this.ensureState(`${areaBase}.occupancy.persons_json`, 'Present persons JSON', 'string', 'json');
+
+        if (personId) {
+            const personBase = `${areaBase}.occupancy.${personId}`;
+            await this.ensureChannel(personBase, personId);
+            await this.ensureState(`${personBase}.display_name`, 'Display name', 'string', 'text');
+            await this.ensureState(`${personBase}.present`, 'Present', 'boolean', 'indicator');
+            await this.ensureState(`${personBase}.device`, 'Device', 'string', 'text');
+            await this.ensureState(`${personBase}.last_seen`, 'Last seen', 'string', 'date');
+            await this.ensureState(`${personBase}.confidence`, 'Confidence', 'number', 'value');
+        }
+    }
+
+    async setAreaPersonPresence(areaId, areaName, person, device, present, timestamp, confidence) {
+        if (!areaId) return;
+        const personId = this.normalizeObjectSegment(person, 'person');
+        const areaBase = `${this.namespace}.indoor.areas.${areaId}`;
+        const personBase = `${areaBase}.occupancy.${personId}`;
+        await this.ensureIndoorAreaOccupancyObjects(areaId, areaName, personId);
+        await this.setStateAsync(`${personBase}.display_name`, person, true);
+        await this.setStateAsync(`${personBase}.present`, Boolean(present), true);
+        await this.setStateAsync(`${personBase}.device`, present ? device : '', true);
+        await this.setStateAsync(`${personBase}.last_seen`, timestamp, true);
+        await this.setStateAsync(`${personBase}.confidence`, present ? confidence : 0, true);
+        await this.refreshAreaOccupants(areaId, {
+            [personId]: {
+                person,
+                present: Boolean(present),
+            },
+        });
+    }
+
+    async refreshAreaOccupants(areaId, overrides = {}) {
+        if (!areaId) return;
+        const areaBase = `${this.namespace}.indoor.areas.${areaId}`;
+        const states = await this.getStatesAsync(`${areaBase}.occupancy.*.present`);
+        const occupants = new Map();
+        const pattern = new RegExp(`^${areaBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.occupancy\\.([^.]+)\\.present$`);
+
+        for (const [id, state] of Object.entries(states || {})) {
+            const match = id.match(pattern);
+            if (match && state && state.val === true) {
+                occupants.set(match[1], { person: match[1] });
+            }
+        }
+
+        for (const [personId, value] of Object.entries(overrides)) {
+            if (value.present) {
+                occupants.set(personId, { person: value.person || personId });
+            } else {
+                occupants.delete(personId);
+            }
+        }
+
+        const persons = Array.from(occupants.values()).sort((left, right) => left.person.localeCompare(right.person, 'de'));
+        await this.setStateAsync(`${areaBase}.occupancy.present_count`, persons.length, true);
+        await this.setStateAsync(`${areaBase}.occupancy.persons_text`, persons.map(entry => entry.person).join(', '), true);
+        await this.setStateAsync(`${areaBase}.occupancy.persons_json`, JSON.stringify(persons), true);
+    }
+
+    async updateIndoorOccupancy(person, device, previousArea, currentArea, areaName, timestamp, confidence) {
+        if (previousArea && previousArea !== currentArea) {
+            await this.setAreaPersonPresence(previousArea, previousArea, person, device, false, timestamp, 0);
+        }
+        if (currentArea) {
+            await this.setAreaPersonPresence(currentArea, areaName || currentArea, person, device, true, timestamp, confidence);
+        }
     }
 
     async ensureIndoorObjects(person, device, beacons, areaId, areaName) {
@@ -791,10 +877,18 @@ class Iobapp extends utils.Adapter {
             const inference = learningAreaId
                 ? { currentArea: learningAreaId, confidence: 1, candidates: [] }
                 : this.inferIndoorArea(positioningBeacons, fingerprints);
+            const matchedArea = inference.currentArea
+                ? fingerprints.find(fingerprint => fingerprint.areaId === inference.currentArea)
+                : null;
+            const currentAreaName = learningAreaName || (matchedArea && matchedArea.areaName) || inference.currentArea;
             const strongestBeacon = beacons
                 .filter(beacon => beacon.rssi !== null)
                 .sort((left, right) => right.rssi - left.rssi)[0];
             const deviceBase = `${this.namespace}.person.${person}.${device}.indoor`;
+            const previousAreaState = typeof this.getStateAsync === 'function'
+                ? await this.getStateAsync(`${deviceBase}.current_area`)
+                : null;
+            const previousArea = previousAreaState && previousAreaState.val ? String(previousAreaState.val) : '';
             await this.setStateAsync(`${deviceBase}.last_scan`, timestamp, true);
             await this.setStateAsync(`${deviceBase}.last_scan_trigger`, trigger, true);
             await this.setStateAsync(`${deviceBase}.beacon_count`, beacons.length, true);
@@ -802,6 +896,7 @@ class Iobapp extends utils.Adapter {
             await this.setStateAsync(`${deviceBase}.current_area`, inference.currentArea, true);
             await this.setStateAsync(`${deviceBase}.confidence`, inference.confidence, true);
             await this.setStateAsync(`${deviceBase}.candidates_json`, JSON.stringify(inference.candidates), true);
+            await this.updateIndoorOccupancy(person, device, previousArea, inference.currentArea, currentAreaName, timestamp, inference.confidence);
 
             socket.send(JSON.stringify({
                 action: 'indoorBeaconScan',
@@ -1089,6 +1184,62 @@ class Iobapp extends utils.Adapter {
             this.checkStaleRelayDevices().catch(err => this.log.warn(`Relay stale-device check failed: ${err.message}`));
         }, 60 * 1000);
         this.checkStaleRelayDevices().catch(err => this.log.warn(`Initial relay stale-device check failed: ${err.message}`));
+    }
+
+    startIndoorOccupancyExpiryMonitor() {
+        if (this.indoorOccupancyInterval) {
+            clearInterval(this.indoorOccupancyInterval);
+            this.indoorOccupancyInterval = null;
+        }
+        this.indoorOccupancyInterval = setInterval(() => {
+            this.expireStaleIndoorOccupancy().catch(err => this.log.warn(`Indoor occupancy expiry failed: ${err.message}`));
+        }, 60 * 1000);
+        this.expireStaleIndoorOccupancy().catch(err => this.log.warn(`Initial indoor occupancy expiry failed: ${err.message}`));
+    }
+
+    parseIndoorTimestamp(value) {
+        if (!value) return 0;
+        const millis = Date.parse(String(value));
+        return Number.isFinite(millis) ? millis : 0;
+    }
+
+    async getIndoorAreaTimeoutMinutes(areaId) {
+        const defaultTimeout = Number(this.config.indoorPresenceTimeoutMinutes || 120);
+        if (!areaId || typeof this.getStateAsync !== 'function') {
+            return defaultTimeout;
+        }
+        const state = await this.getStateAsync(`${this.namespace}.indoor.areas.${areaId}.settings.presence_timeout_minutes`);
+        const value = state && state.val !== undefined && state.val !== null && state.val !== '' ? Number(state.val) : defaultTimeout;
+        return Number.isFinite(value) ? value : defaultTimeout;
+    }
+
+    async expireStaleIndoorOccupancy() {
+        const states = await this.getStatesAsync(`${this.namespace}.person.*.*.indoor.current_area`);
+        const pattern = new RegExp(`^${this.namespace.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.person\\.([^.]+)\\.([^.]+)\\.indoor\\.current_area$`);
+        const now = Date.now();
+
+        for (const [id, state] of Object.entries(states || {})) {
+            if (!state || !state.val) continue;
+            const match = id.match(pattern);
+            if (!match) continue;
+            const [, person, device] = match;
+            const currentArea = String(state.val);
+            const timeoutMinutes = await this.getIndoorAreaTimeoutMinutes(currentArea);
+            if (timeoutMinutes <= 0) continue;
+
+            const lastScanState = await this.getStateAsync(`${this.namespace}.person.${person}.${device}.indoor.last_scan`);
+            const lastScanTime = this.parseIndoorTimestamp(lastScanState && lastScanState.val);
+            if (!lastScanTime) continue;
+
+            const ageMinutes = (now - lastScanTime) / 60000;
+            if (ageMinutes <= timeoutMinutes) continue;
+
+            const timestamp = new Date().toISOString();
+            await this.setStateAsync(`${this.namespace}.person.${person}.${device}.indoor.current_area`, '', true);
+            await this.setStateAsync(`${this.namespace}.person.${person}.${device}.indoor.confidence`, 0, true);
+            await this.updateIndoorOccupancy(person, device, currentArea, '', '', timestamp, 0);
+            this.log.info(`Expired indoor occupancy for ${person}.${device} in ${currentArea} after ${Math.round(ageMinutes)} minutes`);
+        }
     }
 
     async checkStaleRelayDevices() {

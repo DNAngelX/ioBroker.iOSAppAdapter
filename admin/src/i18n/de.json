@@ -44,5 +44,6 @@
   "none": "Keine",
   "ignore": "Ignorieren",
   "remove": "Entfernen",
-  "openIndoorDashboard": "Indoor-Verwaltung öffnen"
+  "openIndoorDashboard": "Indoor-Verwaltung öffnen",
+  "indoorPresenceTimeoutMinutes": "Standard-Präsenz-Timeout in Minuten"
 }

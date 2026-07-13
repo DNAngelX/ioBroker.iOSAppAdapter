@@ -429,6 +429,148 @@ describe("Protocol v2 WebSocket contract", () => {
 		expect(fingerprint.beacons.map(beacon => beacon.id)).to.deep.equal(["shelly"]);
 		expect(socket.sent[0]).to.deep.include({ action: "indoorBeaconScan", success: true });
 	});
+
+	it("does not keep an indoor area when only a small fingerprint fraction matches", async () => {
+		const adapter = makeAdapter();
+		const states = [];
+		const learnedBeacons = Array.from({ length: 29 }, (_value, index) => ({
+			id: `beacon-${index}`,
+			name: `Beacon ${index}`,
+			averageRssi: -50,
+			maxRssi: -50,
+			count: 1,
+			services: [],
+			manufacturerData: "",
+		}));
+		adapter.setObjectNotExistsAsync = async () => {};
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		adapter.getStatesAsync = async pattern => {
+			if (pattern === "iobapp.0.indoor.areas.*.fingerprint_json") {
+				return {
+					"iobapp.0.indoor.areas.chilling.fingerprint_json": {
+						val: JSON.stringify({
+							areaId: "chilling",
+							areaName: "Chill room",
+							beacons: learnedBeacons,
+						}),
+					},
+				};
+			}
+			return {};
+		};
+		const socket = makeSocket();
+
+		await adapter.handleIndoorBeaconScan(socket, {
+			person: "Jan",
+			device: "iPhone",
+			trigger: "significantLocationChange",
+			timestamp: "2026-07-13T08:18:48Z",
+			beacons: [
+				{ id: "beacon-0", name: "Beacon 0", rssi: -47 },
+				{ id: "beacon-1", name: "Beacon 1", rssi: -53 },
+				{ id: "beacon-2", name: "Beacon 2", rssi: -55 },
+			],
+		});
+
+		expect(states).to.deep.include.members([
+			{ id: "iobapp.0.person.Jan.iPhone.indoor.current_area", val: "", ack: true },
+			{ id: "iobapp.0.person.Jan.iPhone.indoor.confidence", val: 0.1, ack: true },
+		]);
+		expect(socket.sent[0].data).to.deep.equal({
+			currentArea: "",
+			confidence: 0.1,
+		});
+	});
+
+	it("writes area occupancy states and clears the previous area", async () => {
+		const adapter = makeAdapter();
+		const objects = [];
+		const states = [];
+		adapter.setObjectNotExistsAsync = async (id, object) => objects.push({ id, object });
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		adapter.getStateAsync = async id => {
+			if (id === "iobapp.0.person.Jan.iPhone.indoor.current_area") {
+				return { val: "chilling" };
+			}
+			return null;
+		};
+		adapter.getStatesAsync = async pattern => {
+			if (pattern === "iobapp.0.indoor.areas.*.fingerprint_json") {
+				return {
+					"iobapp.0.indoor.areas.flur.fingerprint_json": {
+						val: JSON.stringify({
+							areaId: "flur",
+							areaName: "Flur",
+							beacons: [{ id: "fixed-flur", averageRssi: -50 }],
+						}),
+					},
+				};
+			}
+			if (pattern.endsWith(".occupancy.*.present")) return {};
+			return {};
+		};
+		const socket = makeSocket();
+
+		await adapter.handleIndoorBeaconScan(socket, {
+			person: "Jan",
+			device: "iPhone",
+			trigger: "manualIndoorScan",
+			timestamp: "2026-07-13T09:00:00Z",
+			beacons: [{ id: "fixed-flur", name: "Flur Beacon", rssi: -50 }],
+		});
+
+		expect(objects.map(entry => entry.id)).to.include.members([
+			"iobapp.0.indoor.areas.flur.occupancy",
+			"iobapp.0.indoor.areas.flur.occupancy.jan.present",
+			"iobapp.0.indoor.areas.chilling.occupancy.jan.present",
+		]);
+		expect(states).to.deep.include.members([
+			{ id: "iobapp.0.indoor.areas.flur.occupancy.jan.present", val: true, ack: true },
+			{ id: "iobapp.0.indoor.areas.flur.occupancy.jan.last_seen", val: "2026-07-13T09:00:00Z", ack: true },
+			{ id: "iobapp.0.indoor.areas.flur.occupancy.jan.device", val: "iPhone", ack: true },
+			{ id: "iobapp.0.indoor.areas.chilling.occupancy.jan.present", val: false, ack: true },
+		]);
+	});
+
+	it("expires stale indoor occupancy using the area timeout", async () => {
+		const adapter = makeAdapter();
+		const states = [];
+		adapter.config.indoorPresenceTimeoutMinutes = 120;
+		adapter.setObjectNotExistsAsync = async () => {};
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		adapter.getStatesAsync = async pattern => {
+			if (pattern === "iobapp.0.person.*.*.indoor.current_area") {
+				return {
+					"iobapp.0.person.Jan.iPhone.indoor.current_area": { val: "schlafzimmer" },
+				};
+			}
+			if (pattern === "iobapp.0.indoor.areas.schlafzimmer.occupancy.*.present") {
+				return {
+					"iobapp.0.indoor.areas.schlafzimmer.occupancy.jan.present": { val: true },
+				};
+			}
+			return {};
+		};
+		adapter.getStateAsync = async id => {
+			if (id === "iobapp.0.indoor.areas.schlafzimmer.settings.presence_timeout_minutes") {
+				return { val: 1 };
+			}
+			if (id === "iobapp.0.person.Jan.iPhone.indoor.last_scan") {
+				return { val: "2000-01-01T00:00:00Z" };
+			}
+			return null;
+		};
+
+		await adapter.expireStaleIndoorOccupancy();
+
+		expect(states).to.deep.include.members([
+			{ id: "iobapp.0.person.Jan.iPhone.indoor.current_area", val: "", ack: true },
+			{ id: "iobapp.0.person.Jan.iPhone.indoor.confidence", val: 0, ack: true },
+			{ id: "iobapp.0.indoor.areas.schlafzimmer.occupancy.jan.present", val: false, ack: true },
+			{ id: "iobapp.0.indoor.areas.schlafzimmer.occupancy.present_count", val: 0, ack: true },
+			{ id: "iobapp.0.indoor.areas.schlafzimmer.occupancy.persons_text", val: "", ack: true },
+		]);
+	});
 });
 
 describe("APN message routing", () => {

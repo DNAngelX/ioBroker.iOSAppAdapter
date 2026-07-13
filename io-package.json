@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.10",
+    "version": "0.2.11",
     "news": {
+      "0.2.11": {
+        "en": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
+        "de": "Indoor-Area-Belegung ergänzt und falsche Indoor-Treffer durch Fingerprint-Abdeckungswertung reduziert",
+        "ru": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
+        "pt": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
+        "nl": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
+        "fr": "Ajout des états d’occupation indoor et réduction des faux positifs via le score de couverture des fingerprints",
+        "it": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
+        "es": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
+        "pl": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
+        "uk": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
+        "zh-cn": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring"
+      },
       "0.2.10": {
         "en": "Make indoor dashboard device, area, area detail and beacon lists independently scrollable",
         "de": "Indoor-Dashboard-Listen für Geräte, Areas, Area-Details und Beacons separat scrollbar gemacht",
@@ -303,7 +316,8 @@
     "indoorEnabled": true,
     "indoorScanSeconds": 8,
     "indoorLearningSeconds": 30,
-    "indoorMinimumConfidence": 0.25
+    "indoorMinimumConfidence": 0.25,
+    "indoorPresenceTimeoutMinutes": 120
   },
   "objects": [],
   "instanceObjects": []

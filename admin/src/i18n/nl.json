@@ -36,5 +36,6 @@
   "none": "None",
   "ignore": "Ignore",
   "remove": "Remove",
-  "openIndoorDashboard": "Open indoor management"
+  "openIndoorDashboard": "Open indoor management",
+  "indoorPresenceTimeoutMinutes": "Default presence timeout in minutes"
 }

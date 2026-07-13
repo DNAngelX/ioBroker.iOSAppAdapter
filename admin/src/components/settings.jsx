@@ -200,6 +200,8 @@ class Settings extends React.Component {
 				<br />
 				{this.renderInput("indoorMinimumConfidence", "indoorMinimumConfidence", "number")}
 				<br />
+				{this.renderInput("indoorPresenceTimeoutMinutes", "indoorPresenceTimeoutMinutes", "number")}
+				<br />
 				<Button variant="contained" color="primary" onClick={this.openIndoorDashboard}>
 					{I18n.t("openIndoorDashboard")}
 				</Button>
