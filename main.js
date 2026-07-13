@@ -712,6 +712,19 @@ class Iobapp extends utils.Adapter {
         };
     }
 
+    serializeIndoorCandidates(candidates) {
+        return (Array.isArray(candidates) ? candidates : [])
+            .slice(0, 5)
+            .map(candidate => ({
+                areaId: candidate.areaId || '',
+                areaName: candidate.areaName || candidate.areaId || '',
+                confidence: Number.isFinite(Number(candidate.confidence)) ? Number(candidate.confidence) : 0,
+                coverage: Number.isFinite(Number(candidate.coverage)) ? Number(candidate.coverage) : 0,
+                overlap: Number.isFinite(Number(candidate.overlap)) ? Number(candidate.overlap) : 0,
+                score: Number.isFinite(Number(candidate.score)) ? Number(candidate.score) : 0,
+            }));
+    }
+
     async ensureIndoorAreaOccupancyObjects(areaId, areaName, personId = '') {
         if (!areaId) return;
         const areaBase = `${this.namespace}.indoor.areas.${areaId}`;
@@ -904,6 +917,7 @@ class Iobapp extends utils.Adapter {
                 data: {
                     currentArea: inference.currentArea,
                     confidence: inference.confidence,
+                    candidates: this.serializeIndoorCandidates(inference.candidates),
                 },
             }));
         } catch (err) {

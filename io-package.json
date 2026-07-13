@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.12",
+    "version": "0.2.13",
     "news": {
+      "0.2.13": {
+        "en": "Return indoor area candidates and accept empty manual learning scans",
+        "de": "Indoor-Area-Kandidaten zurückgeben und leere manuelle Lernscans akzeptieren",
+        "ru": "Return indoor area candidates and accept empty manual learning scans",
+        "pt": "Return indoor area candidates and accept empty manual learning scans",
+        "nl": "Return indoor area candidates and accept empty manual learning scans",
+        "fr": "Return indoor area candidates and accept empty manual learning scans",
+        "it": "Return indoor area candidates and accept empty manual learning scans",
+        "es": "Return indoor area candidates and accept empty manual learning scans",
+        "pl": "Return indoor area candidates and accept empty manual learning scans",
+        "uk": "Return indoor area candidates and accept empty manual learning scans",
+        "zh-cn": "Return indoor area candidates and accept empty manual learning scans"
+      },
       "0.2.12": {
         "en": "Filter indoor dashboard areas to direct area channels only",
         "de": "Indoor-Dashboard zeigt nur direkte Area-Kanäle als Areas an",

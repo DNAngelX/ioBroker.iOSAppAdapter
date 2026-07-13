@@ -401,6 +401,7 @@ describe("Protocol v2 WebSocket contract", () => {
 				data: {
 					currentArea: "wohnzimmer-sofa",
 					confidence: 1,
+					candidates: [],
 				},
 			},
 		]);
@@ -491,6 +492,57 @@ describe("Protocol v2 WebSocket contract", () => {
 		expect(socket.sent[0].data).to.deep.equal({
 			currentArea: "",
 			confidence: 0.1,
+			candidates: [
+				{
+					areaId: "chilling",
+					areaName: "Chill room",
+					confidence: 0.1,
+					coverage: 0.1,
+					overlap: 3,
+					score: 289,
+				},
+			],
+		});
+	});
+
+	it("creates a manual learning area even when no beacons were captured", async () => {
+		const adapter = makeAdapter();
+		const objects = [];
+		const states = [];
+		adapter.setObjectNotExistsAsync = async (id, object) => objects.push({ id, object });
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		adapter.getStatesAsync = async () => ({});
+		const socket = makeSocket();
+
+		await adapter.handleIndoorBeaconScan(socket, {
+			person: "Jan",
+			device: "iPhone",
+			trigger: "learning",
+			timestamp: "2026-07-13T12:30:00.000Z",
+			learningAreaId: "buro-rotenburg",
+			learningAreaName: "Büro Rotenburg",
+			beacons: [],
+		});
+
+		expect(objects.map(entry => entry.id)).to.include.members([
+			"iobapp.0.indoor.areas.buro-rotenburg",
+			"iobapp.0.indoor.areas.buro-rotenburg.name",
+			"iobapp.0.indoor.areas.buro-rotenburg.fingerprint_json",
+		]);
+		expect(states).to.deep.include.members([
+			{ id: "iobapp.0.indoor.areas.buro-rotenburg.name", val: "Büro Rotenburg", ack: true },
+			{ id: "iobapp.0.indoor.areas.buro-rotenburg.sample_count", val: 0, ack: true },
+			{ id: "iobapp.0.person.Jan.iPhone.indoor.current_area", val: "buro-rotenburg", ack: true },
+			{ id: "iobapp.0.person.Jan.iPhone.indoor.confidence", val: 1, ack: true },
+		]);
+		expect(socket.sent[0]).to.deep.equal({
+			action: "indoorBeaconScan",
+			success: true,
+			data: {
+				currentArea: "buro-rotenburg",
+				confidence: 1,
+				candidates: [],
+			},
 		});
 	});
 
