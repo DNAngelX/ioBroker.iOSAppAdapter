@@ -102,6 +102,7 @@ describe("Protocol v2 WebSocket contract", () => {
 			"getIndoorRooms",
 			"indoorBeaconScan",
 			"setIndoorBeaconClassification",
+			"setIndoorAreaBeaconMode",
 		]);
 	});
 
@@ -515,6 +516,7 @@ describe("Protocol v2 WebSocket contract", () => {
 							delta: 3,
 							score: 97,
 							classification: "fixed",
+							areaMode: "auto",
 						},
 						{
 							beaconId: "beacon-1",
@@ -524,6 +526,7 @@ describe("Protocol v2 WebSocket contract", () => {
 							delta: 3,
 							score: 97,
 							classification: "unknown",
+							areaMode: "auto",
 						},
 						{
 							beaconId: "beacon-2",
@@ -533,6 +536,7 @@ describe("Protocol v2 WebSocket contract", () => {
 							delta: 5,
 							score: 95,
 							classification: "unknown",
+							areaMode: "auto",
 						},
 					],
 				},
@@ -572,6 +576,105 @@ describe("Protocol v2 WebSocket contract", () => {
 				data: {
 					beaconId: "peripheral-abc",
 					classification: "mobile",
+				},
+			},
+		]);
+	});
+
+	it("applies area-specific beacon exclude modes during indoor scoring", async () => {
+		const adapter = makeAdapter();
+		const states = [];
+		adapter.setObjectNotExistsAsync = async () => {};
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		adapter.getStatesAsync = async pattern => {
+			if (pattern === "iobapp.0.indoor.beacons.*.classification") return {};
+			if (pattern === "iobapp.0.indoor.areas.*.beacons.*.mode") {
+				return {
+					"iobapp.0.indoor.areas.office.beacons.noisy.mode": { val: "exclude" },
+				};
+			}
+			if (pattern === "iobapp.0.indoor.areas.*.fingerprint_json") {
+				return {
+					"iobapp.0.indoor.areas.office.fingerprint_json": {
+						val: JSON.stringify({
+							areaId: "office",
+							areaName: "Office",
+							beacons: [
+								{ id: "good", name: "Good Beacon", averageRssi: -50 },
+								{ id: "noisy", name: "Noisy Beacon", averageRssi: -50 },
+							],
+						}),
+					},
+				};
+			}
+			return {};
+		};
+		const socket = makeSocket();
+
+		await adapter.handleIndoorBeaconScan(socket, {
+			person: "Jan",
+			device: "iPhone",
+			trigger: "manualIndoorScan",
+			timestamp: "2026-07-13T13:30:00Z",
+			beacons: [
+				{ id: "good", name: "Good Beacon", rssi: -50 },
+				{ id: "noisy", name: "Noisy Beacon", rssi: -20 },
+			],
+		});
+
+		expect(socket.sent[0].data.candidates[0]).to.deep.include({
+			areaId: "office",
+			confidence: 1,
+			coverage: 1,
+			overlap: 1,
+			score: 100,
+		});
+		expect(socket.sent[0].data.candidates[0].matches).to.deep.equal([
+			{
+				beaconId: "good",
+				beaconName: "Good Beacon",
+				currentRssi: -50,
+				learnedRssi: -50,
+				delta: 0,
+				score: 100,
+				classification: "unknown",
+				areaMode: "auto",
+			},
+		]);
+	});
+
+	it("updates area-specific indoor beacon modes from the app", async () => {
+		const adapter = makeAdapter();
+		const objects = [];
+		const states = [];
+		adapter.setObjectNotExistsAsync = async (id, object) => objects.push({ id, object });
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		const socket = makeSocket();
+
+		await adapter.handleSetIndoorAreaBeaconMode(socket, {
+			areaId: "office",
+			beaconId: "noisy",
+			mode: "exclude",
+		});
+
+		expect(objects.map(entry => entry.id)).to.include.members([
+			"iobapp.0.indoor.areas.office.beacons",
+			"iobapp.0.indoor.areas.office.beacons.noisy",
+			"iobapp.0.indoor.areas.office.beacons.noisy.mode",
+		]);
+		expect(states).to.deep.include({
+			id: "iobapp.0.indoor.areas.office.beacons.noisy.mode",
+			val: "exclude",
+			ack: true,
+		});
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "setIndoorAreaBeaconMode",
+				success: true,
+				data: {
+					areaId: "office",
+					beaconId: "noisy",
+					mode: "exclude",
 				},
 			},
 		]);

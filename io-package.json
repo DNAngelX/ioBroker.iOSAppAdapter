@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.14",
+    "version": "0.2.15",
     "news": {
+      "0.2.15": {
+        "en": "Add per-area indoor beacon include and exclude modes",
+        "de": "Area-spezifische Include- und Exclude-Modi für Indoor-Beacons ergänzt",
+        "ru": "Add per-area indoor beacon include and exclude modes",
+        "pt": "Add per-area indoor beacon include and exclude modes",
+        "nl": "Add per-area indoor beacon include and exclude modes",
+        "fr": "Add per-area indoor beacon include and exclude modes",
+        "it": "Add per-area indoor beacon include and exclude modes",
+        "es": "Add per-area indoor beacon include and exclude modes",
+        "pl": "Add per-area indoor beacon include and exclude modes",
+        "uk": "Add per-area indoor beacon include and exclude modes",
+        "zh-cn": "Add per-area indoor beacon include and exclude modes"
+      },
       "0.2.14": {
         "en": "Add indoor candidate beacon match details and app-controlled beacon classification",
         "de": "Indoor-Kandidaten um Beacon-Match-Details und App-gesteuerte Beacon-Klassifizierung ergänzt",
@@ -249,19 +262,6 @@
         "pl": "bugfix ws",
         "uk": "бетмен",
         "zh-cn": "错误修正ws"
-      },
-      "0.0.3": {
-        "en": "bugfix ports",
-        "de": "bugfix-ports",
-        "ru": "порты исправления ошибок",
-        "pt": "portas do bugfix",
-        "nl": "bugfix poorten",
-        "fr": "ports de correction de bugs",
-        "it": "porte bugfix",
-        "es": "puertos bugfix",
-        "pl": "porty bugfix",
-        "uk": "порти помилок",
-        "zh-cn": "错误修正端口"
       }
     },
     "title": "integration for iOS app",
