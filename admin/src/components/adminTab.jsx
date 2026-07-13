@@ -10,6 +10,8 @@ import TextField from "@material-ui/core/TextField";
 import Typography from "@material-ui/core/Typography";
 import I18n from "@iobroker/adapter-react/i18n";
 
+const { isDirectIndoorAreaChannel } = require("./indoorAreaUtils");
+
 const NAMESPACE = "iobapp.0";
 
 const styles = theme => ({
@@ -256,7 +258,7 @@ class AdminTab extends React.Component {
 
 	collectAreas(objects, states) {
 		return Object.keys(objects || {})
-			.filter(id => id.startsWith(`${NAMESPACE}.indoor.areas.`) && objects[id].type === "channel")
+			.filter(id => objects[id].type === "channel" && isDirectIndoorAreaChannel(id, NAMESPACE))
 			.map(id => {
 				const base = id;
 				const fingerprintRaw = this.value(states, `${base}.fingerprint_json`, "{}");

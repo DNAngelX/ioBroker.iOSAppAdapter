@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.11",
+    "version": "0.2.12",
     "news": {
+      "0.2.12": {
+        "en": "Filter indoor dashboard areas to direct area channels only",
+        "de": "Indoor-Dashboard zeigt nur direkte Area-Kanäle als Areas an",
+        "ru": "Filter indoor dashboard areas to direct area channels only",
+        "pt": "Filter indoor dashboard areas to direct area channels only",
+        "nl": "Filter indoor dashboard areas to direct area channels only",
+        "fr": "Filter indoor dashboard areas to direct area channels only",
+        "it": "Filter indoor dashboard areas to direct area channels only",
+        "es": "Filter indoor dashboard areas to direct area channels only",
+        "pl": "Filter indoor dashboard areas to direct area channels only",
+        "uk": "Filter indoor dashboard areas to direct area channels only",
+        "zh-cn": "Filter indoor dashboard areas to direct area channels only"
+      },
       "0.2.11": {
         "en": "Add indoor area occupancy states and reduce false indoor matches with fingerprint coverage scoring",
         "de": "Indoor-Area-Belegung ergänzt und falsche Indoor-Treffer durch Fingerprint-Abdeckungswertung reduziert",

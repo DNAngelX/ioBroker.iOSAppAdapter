@@ -41,6 +41,18 @@ function makeSocket() {
 	};
 }
 
+describe("Indoor admin UI helpers", () => {
+	it("treats only direct indoor area channels as areas", () => {
+		const { isDirectIndoorAreaChannel } = require("./admin/src/components/indoorAreaUtils");
+
+		expect(isDirectIndoorAreaChannel("iobapp.0.indoor.areas.chilling", "iobapp.0")).to.equal(true);
+		expect(isDirectIndoorAreaChannel("iobapp.0.indoor.areas.chilling.occupancy", "iobapp.0")).to.equal(false);
+		expect(isDirectIndoorAreaChannel("iobapp.0.indoor.areas.chilling.occupancy.jan", "iobapp.0")).to.equal(false);
+		expect(isDirectIndoorAreaChannel("iobapp.0.indoor.areas.chilling.settings", "iobapp.0")).to.equal(false);
+		expect(isDirectIndoorAreaChannel("iobapp.0.indoor.beacons.chilling", "iobapp.0")).to.equal(false);
+	});
+});
+
 describe("Protocol v2 WebSocket contract", () => {
 	it("registers the materialize admin tab for indoor management", () => {
 		const ioPackage = JSON.parse(readFileSync(join(__dirname, "io-package.json"), "utf8"));
