@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.13",
+    "version": "0.2.14",
     "news": {
+      "0.2.14": {
+        "en": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "de": "Indoor-Kandidaten um Beacon-Match-Details und App-gesteuerte Beacon-Klassifizierung ergänzt",
+        "ru": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "pt": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "nl": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "fr": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "it": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "es": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "pl": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "uk": "Add indoor candidate beacon match details and app-controlled beacon classification",
+        "zh-cn": "Add indoor candidate beacon match details and app-controlled beacon classification"
+      },
       "0.2.13": {
         "en": "Return indoor area candidates and accept empty manual learning scans",
         "de": "Indoor-Area-Kandidaten zurückgeben und leere manuelle Lernscans akzeptieren",

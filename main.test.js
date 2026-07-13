@@ -101,6 +101,7 @@ describe("Protocol v2 WebSocket contract", () => {
 			"notificationCommand",
 			"getIndoorRooms",
 			"indoorBeaconScan",
+			"setIndoorBeaconClassification",
 		]);
 	});
 
@@ -458,6 +459,11 @@ describe("Protocol v2 WebSocket contract", () => {
 		adapter.setObjectNotExistsAsync = async () => {};
 		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
 		adapter.getStatesAsync = async pattern => {
+			if (pattern === "iobapp.0.indoor.beacons.*.classification") {
+				return {
+					"iobapp.0.indoor.beacons.beacon-0.classification": { val: "fixed" },
+				};
+			}
 			if (pattern === "iobapp.0.indoor.areas.*.fingerprint_json") {
 				return {
 					"iobapp.0.indoor.areas.chilling.fingerprint_json": {
@@ -500,9 +506,75 @@ describe("Protocol v2 WebSocket contract", () => {
 					coverage: 0.1,
 					overlap: 3,
 					score: 289,
+					matches: [
+						{
+							beaconId: "beacon-0",
+							beaconName: "Beacon 0",
+							currentRssi: -47,
+							learnedRssi: -50,
+							delta: 3,
+							score: 97,
+							classification: "fixed",
+						},
+						{
+							beaconId: "beacon-1",
+							beaconName: "Beacon 1",
+							currentRssi: -53,
+							learnedRssi: -50,
+							delta: 3,
+							score: 97,
+							classification: "unknown",
+						},
+						{
+							beaconId: "beacon-2",
+							beaconName: "Beacon 2",
+							currentRssi: -55,
+							learnedRssi: -50,
+							delta: 5,
+							score: 95,
+							classification: "unknown",
+						},
+					],
 				},
 			],
 		});
+	});
+
+	it("updates indoor beacon classification from the app", async () => {
+		const adapter = makeAdapter();
+		const objects = [];
+		const states = [];
+		adapter.setObjectNotExistsAsync = async (id, object) => objects.push({ id, object });
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		const socket = makeSocket();
+
+		await adapter.handleSetIndoorBeaconClassification(socket, {
+			beaconId: "peripheral-abc",
+			classification: "mobile",
+			assignedArea: "office-row-jan",
+			notes: "MacBook bewegt sich",
+		});
+
+		expect(objects.map(entry => entry.id)).to.include.members([
+			"iobapp.0.indoor.beacons.peripheral-abc.classification",
+			"iobapp.0.indoor.beacons.peripheral-abc.assigned_area",
+			"iobapp.0.indoor.beacons.peripheral-abc.notes",
+		]);
+		expect(states).to.deep.include.members([
+			{ id: "iobapp.0.indoor.beacons.peripheral-abc.classification", val: "mobile", ack: true },
+			{ id: "iobapp.0.indoor.beacons.peripheral-abc.assigned_area", val: "office-row-jan", ack: true },
+			{ id: "iobapp.0.indoor.beacons.peripheral-abc.notes", val: "MacBook bewegt sich", ack: true },
+		]);
+		expect(socket.sent).to.deep.equal([
+			{
+				action: "setIndoorBeaconClassification",
+				success: true,
+				data: {
+					beaconId: "peripheral-abc",
+					classification: "mobile",
+				},
+			},
+		]);
 	});
 
 	it("creates a manual learning area even when no beacons were captured", async () => {

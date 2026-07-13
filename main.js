@@ -677,20 +677,35 @@ class Iobapp extends utils.Adapter {
             .filter(fingerprint => fingerprint && Array.isArray(fingerprint.beacons));
     }
 
-    inferIndoorArea(beacons, fingerprints) {
+    inferIndoorArea(beacons, fingerprints, classifications = new Map()) {
         const rssiByBeacon = new Map(
             beacons
                 .filter(beacon => beacon.rssi !== null)
                 .map(beacon => [beacon.id, beacon.rssi])
         );
+        const beaconById = new Map(beacons.map(beacon => [beacon.id, beacon]));
         const candidates = fingerprints.map(fingerprint => {
             let score = 0;
             let overlap = 0;
+            const matches = [];
             for (const learned of fingerprint.beacons) {
                 if (!rssiByBeacon.has(learned.id)) continue;
+                const currentRssi = rssiByBeacon.get(learned.id);
+                const learnedRssi = Number(learned.averageRssi);
+                const delta = Math.abs(currentRssi - learnedRssi);
+                const matchScore = Math.max(0, 100 - delta);
+                const beacon = beaconById.get(learned.id) || {};
                 overlap += 1;
-                const delta = Math.abs(rssiByBeacon.get(learned.id) - learned.averageRssi);
-                score += Math.max(0, 100 - delta);
+                score += matchScore;
+                matches.push({
+                    beaconId: learned.id,
+                    beaconName: beacon.name || beacon.localName || learned.name || learned.id,
+                    currentRssi,
+                    learnedRssi,
+                    delta,
+                    score: matchScore,
+                    classification: classifications.get(learned.id) || 'unknown',
+                });
             }
             return {
                 areaId: fingerprint.areaId,
@@ -699,6 +714,7 @@ class Iobapp extends utils.Adapter {
                 score,
                 confidence: fingerprint.beacons.length > 0 ? Math.round((score / (fingerprint.beacons.length * 100)) * 100) / 100 : 0,
                 coverage: fingerprint.beacons.length > 0 ? Math.round((overlap / fingerprint.beacons.length) * 100) / 100 : 0,
+                matches: matches.sort((left, right) => right.score - left.score),
             };
         })
             .filter(candidate => candidate.overlap > 0)
@@ -722,7 +738,51 @@ class Iobapp extends utils.Adapter {
                 coverage: Number.isFinite(Number(candidate.coverage)) ? Number(candidate.coverage) : 0,
                 overlap: Number.isFinite(Number(candidate.overlap)) ? Number(candidate.overlap) : 0,
                 score: Number.isFinite(Number(candidate.score)) ? Number(candidate.score) : 0,
+                matches: (Array.isArray(candidate.matches) ? candidate.matches : []).slice(0, 25).map(match => ({
+                    beaconId: match.beaconId || '',
+                    beaconName: match.beaconName || match.beaconId || '',
+                    currentRssi: Number.isFinite(Number(match.currentRssi)) ? Number(match.currentRssi) : null,
+                    learnedRssi: Number.isFinite(Number(match.learnedRssi)) ? Number(match.learnedRssi) : null,
+                    delta: Number.isFinite(Number(match.delta)) ? Number(match.delta) : null,
+                    score: Number.isFinite(Number(match.score)) ? Number(match.score) : 0,
+                    classification: match.classification || 'unknown',
+                })),
             }));
+    }
+
+    normalizeIndoorBeaconClassification(value) {
+        const classification = String(value || 'unknown').trim().toLowerCase();
+        return ['unknown', 'fixed', 'mobile', 'ignored'].includes(classification) ? classification : 'unknown';
+    }
+
+    async handleSetIndoorBeaconClassification(socket, data) {
+        try {
+            const beaconId = this.normalizeObjectSegment(data && data.beaconId, 'beacon');
+            const classification = this.normalizeIndoorBeaconClassification(data && data.classification);
+            const assignedArea = data && data.assignedArea ? this.normalizeObjectSegment(data.assignedArea, '') : '';
+            const notes = data && data.notes ? String(data.notes) : '';
+            const base = `${this.namespace}.indoor.beacons.${beaconId}`;
+
+            await this.ensureChannel(`${this.namespace}.indoor`, 'Indoor positioning');
+            await this.ensureChannel(`${this.namespace}.indoor.beacons`, 'Discovered BLE beacons');
+            await this.ensureChannel(base, beaconId);
+            await this.ensureIndoorBeaconMetadata(base);
+            await this.setStateAsync(`${base}.classification`, classification, true);
+            await this.setStateAsync(`${base}.assigned_area`, assignedArea, true);
+            await this.setStateAsync(`${base}.notes`, notes, true);
+
+            socket.send(JSON.stringify({
+                action: 'setIndoorBeaconClassification',
+                success: true,
+                data: {
+                    beaconId,
+                    classification,
+                },
+            }));
+        } catch (err) {
+            this.log.error(`Error setting indoor beacon classification: ${err}`);
+            socket.send(JSON.stringify({ action: 'setIndoorBeaconClassification', error: 'Error setting indoor beacon classification' }));
+        }
     }
 
     async ensureIndoorAreaOccupancyObjects(areaId, areaName, personId = '') {
@@ -889,7 +949,7 @@ class Iobapp extends utils.Adapter {
 
             const inference = learningAreaId
                 ? { currentArea: learningAreaId, confidence: 1, candidates: [] }
-                : this.inferIndoorArea(positioningBeacons, fingerprints);
+                : this.inferIndoorArea(positioningBeacons, fingerprints, classifications);
             const matchedArea = inference.currentArea
                 ? fingerprints.find(fingerprint => fingerprint.areaId === inference.currentArea)
                 : null;
@@ -960,7 +1020,8 @@ class Iobapp extends utils.Adapter {
                     'requestSensorRefresh',
                     'notificationCommand',
                     'getIndoorRooms',
-                    'indoorBeaconScan'
+                    'indoorBeaconScan',
+                    'setIndoorBeaconClassification'
                 ]
             }
         }));
@@ -1438,6 +1499,9 @@ class Iobapp extends utils.Adapter {
                     break;
                 case 'indoorBeaconScan':
                     this.handleIndoorBeaconScan(socket, data);
+                    break;
+                case 'setIndoorBeaconClassification':
+                    this.handleSetIndoorBeaconClassification(socket, data);
                     break;
                 default:
                     this.log.warn(`Unknown action: ${action}`);
