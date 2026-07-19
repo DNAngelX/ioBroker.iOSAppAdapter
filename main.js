@@ -632,6 +632,12 @@ class Iobapp extends utils.Adapter {
         });
     }
 
+    isGenericIndoorPeripheralBeacon(beacon) {
+        const name = String(beacon && beacon.name ? beacon.name : '').trim().toLowerCase();
+        const localName = String(beacon && beacon.localName ? beacon.localName : '').trim().toLowerCase();
+        return name === 'peripheral' || localName === 'peripheral' || localName === '--';
+    }
+
     normalizeIndoorBeacon(beacon) {
         const id = this.normalizeObjectSegment(
             beacon && (beacon.id || beacon.name || beacon.localName),
@@ -995,6 +1001,7 @@ class Iobapp extends utils.Adapter {
             const learningAreaName = data && data.learningAreaName ? String(data.learningAreaName) : learningAreaId;
             const beacons = Array.isArray(data && data.beacons)
                 ? data.beacons.map(beacon => this.normalizeIndoorBeacon(beacon))
+                    .filter(beacon => !this.isGenericIndoorPeripheralBeacon(beacon))
                 : [];
 
             await this.ensureIndoorObjects(person, device, beacons, learningAreaId, learningAreaName);

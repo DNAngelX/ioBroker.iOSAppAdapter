@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "iobapp",
-    "version": "0.2.15",
+    "version": "0.3.0",
     "news": {
+      "0.3.0": {
+        "en": "Public test README, release metadata and setup documentation",
+        "de": "README, Release-Metadaten und Setup-Dokumentation für öffentliche Tests",
+        "ru": "Public test README, release metadata and setup documentation",
+        "pt": "Public test README, release metadata and setup documentation",
+        "nl": "Public test README, release metadata and setup documentation",
+        "fr": "Public test README, release metadata and setup documentation",
+        "it": "Public test README, release metadata and setup documentation",
+        "es": "Public test README, release metadata and setup documentation",
+        "pl": "Public test README, release metadata and setup documentation",
+        "uk": "Public test README, release metadata and setup documentation",
+        "zh-cn": "Public test README, release metadata and setup documentation"
+      },
       "0.2.15": {
         "en": "Add per-area indoor beacon include and exclude modes",
         "de": "Area-spezifische Include- und Exclude-Modi für Indoor-Beacons ergänzt",
@@ -249,25 +262,12 @@
         "pl": "bugfix ws",
         "uk": "бетмен",
         "zh-cn": "错误修正ws"
-      },
-      "0.0.4": {
-        "en": "bugfix ws",
-        "de": "fehlerbehebung ws",
-        "ru": "bugfix w",
-        "pt": "ws de correcção de bugs",
-        "nl": "bugfix ws",
-        "fr": "bugfix ws",
-        "it": "bugfix ws",
-        "es": "bugfix ws",
-        "pl": "bugfix ws",
-        "uk": "бетмен",
-        "zh-cn": "错误修正ws"
       }
     },
-    "title": "integration for iOS app",
+    "title": "iOS App Integration",
     "titleLang": {
-      "en": "integration for iOS app",
-      "de": "Integration für iOS-App",
+      "en": "iOS App Integration",
+      "de": "iOS-App-Integration",
       "ru": "интеграция с приложением iOS",
       "pt": "integração para aplicativo iOS",
       "nl": "integratie voor iOS-app",
@@ -279,8 +279,8 @@
       "zh-cn": "iOS 应用程序集成"
     },
     "desc": {
-      "en": "This adapter integrates an iOS app with IoBroker, providing REST endpoints for device data.",
-      "de": "Dieser Adapter integriert eine iOS-App mit IoBroker und stellt REST-Endpunkte für Gerätedaten bereit.",
+      "en": "Connects the IoBroker Tools iOS/watchOS app with ioBroker for sensors, location, notifications, Silent Push and indoor positioning.",
+      "de": "Verbindet die IoBroker-Tools-App für iOS/watchOS mit ioBroker für Sensoren, Standort, Nachrichten, Silent Push und Indoor-Positionierung.",
       "ru": "Этот адаптер интегрирует приложение iOS с IoBroker, предоставляя конечные точки REST для данных устройства.",
       "pt": "Este adaptador integra um aplicativo iOS com IoBroker, fornecendo endpoints REST para dados do dispositivo.",
       "nl": "Deze adapter integreert een iOS-app met IoBroker en biedt REST-eindpunten voor apparaatgegevens.",
@@ -309,8 +309,8 @@
     "main": "main.js",
     "icon": "iobapp.png",
     "enabled": true,
-    "extIcon": "https://raw.githubusercontent.com/DNAngelX/ioBroker.iobapp/main/admin/iobapp.png",
-    "readme": "https://github.com/DNAngelX/ioBroker.iobapp/blob/main/README.md",
+    "extIcon": "https://raw.githubusercontent.com/DNAngelX/ioBroker.iOSAppAdapter/main/admin/iobapp.png",
+    "readme": "https://github.com/DNAngelX/ioBroker.iOSAppAdapter/blob/main/README.md",
     "loglevel": "debug",
     "tier": 3,
     "mode": "daemon",

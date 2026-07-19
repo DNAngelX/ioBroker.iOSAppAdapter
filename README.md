@@ -1,158 +1,292 @@
-![Logo](admin/iobapp.png)
+![ioBroker iOS App](admin/iobapp.png)
+
 # ioBroker.iobapp
 
-[![NPM version](https://img.shields.io/npm/v/iobroker.iobapp.svg)](https://www.npmjs.com/package/iobroker.iobapp)
-[![Downloads](https://img.shields.io/npm/dm/iobroker.iobapp.svg)](https://www.npmjs.com/package/iobroker.iobapp)
-![Number of Installations](https://iobroker.live/badges/iobapp-installed.svg)
-![Current version in stable repository](https://iobroker.live/badges/iobapp-stable.svg)
+ioBroker.iobapp verbindet iPhone, iPad und Apple Watch mit ioBroker. Der Adapter nimmt Sensordaten, Standort-Updates, Indoor-BLE-Scans, HealthKit-Werte und App-/Watch-Aktionen der iOS-App entgegen und legt sie als ioBroker-Objekte unter `iobapp.<instanz>` ab.
 
-[![NPM](https://nodei.co/npm/iobroker.iobapp.png?downloads=true)](https://nodei.co/npm/iobroker.iobapp/)
+Der aktuelle Fokus liegt auf einer Home-Assistant-ähnlichen iOS-Integration: iOS-Systemtrigger, Silent Push, Geozonen, Sensor-Snapshots und transparente Diagnose statt eines dauerhaft laufenden Hintergrund-WebSockets.
 
-**Tests:** ![Test and Release](https://github.com/DNAngelX/ioBroker.iobapp/workflows/Test%20and%20Release/badge.svg)
+## Funktionen
 
-## iobapp adapter for ioBroker
+- iPhone-/iPad-Sensoren: Batterie, Ladezustand, Netzwerkstatus, Gerätestatus, App-Version, letzter Flush und Diagnosewerte
+- Standort und Presence: GPS-Position, Geozonen, Zone betreten/verlassen, `last_update_trigger`
+- Apple Watch: Watch-Snapshots über das iPhone, Batterie-/Bewegungs-/Health-Kontext soweit durch iOS/watchOS verfügbar
+- HealthKit: optionale Health-Daten wie Herzfrequenz, HRV, Blutsauerstoff und weitere freigegebene Werte
+- Notifications: ioBroker-Nachrichten an einzelne Geräte, Personen oder globale Ziele; Fallback über Apple Push, wenn die App nicht per WebSocket erreichbar ist
+- Silent Push: Wake-Push über externes Relay, wenn ein Gerät zu lange kein `last_seen` gesendet hat
+- Indoor-Positionierung: BLE-/iBeacon-Scans, Räume/Areas lernen, Beacons klassifizieren und Area-Kandidaten prüfen
+- NFC/App-Actions: optionale Actions für Tags, Widgets und AppIntents über den Action-Katalog
 
-This adapter integrates an iOS app with IoBroker, providing REST endpoints for device data.
+## Architektur
 
-## Developer manual
-This section is intended for the developer. It can be deleted later.
+Die iOS-App hält keine dauerhaft garantierte Hintergrundverbindung offen. iOS beendet Apps im Hintergrund bewusst. Deshalb arbeitet die Integration mit Ereignissen, die iOS zuverlässig zulässt:
 
-### DISCLAIMER
+- App-Start und Foreground
+- Significant Location Change
+- Geofence Enter/Exit
+- Battery-/Motion-/Network-Änderungen, soweit iOS sie liefert
+- Watch Context Updates
+- BGAppRefresh-Fenster
+- Silent Push über APNs als zusätzlicher Wake-Trigger
 
-Please make sure that you consider copyrights and trademarks when you use names or logos of a company and add a disclaimer to your README.
-You can check other adapters for examples or ask in the developer community. Using a name or logo of a company without permission may cause legal problems for you.
+Der Adapter bleibt rückwärtskompatibel zum bestehenden WebSocket-Protokoll. Neue Funktionen werden über optionale Capabilities aktiviert.
 
-### Getting started
+## Installation
 
-You are almost done, only a few steps left:
-1. Create a new repository on GitHub with the name `ioBroker.iobapp`
-1. Initialize the current folder as a new git repository:  
-	```bash
-	git init -b main
-	git add .
-	git commit -m "Initial commit"
-	```
-1. Link your local repository with the one on GitHub:  
-	```bash
-	git remote add origin https://github.com/DNAngelX/ioBroker.iobapp
-	```
+### Adapter aus GitHub installieren
 
-1. Push all files to the GitHub repo:  
-	```bash
-	git push origin main
-	```
-1. Add a new secret under https://github.com/DNAngelX/ioBroker.iobapp/settings/secrets. It must be named `AUTO_MERGE_TOKEN` and contain a personal access token with push access to the repository, e.g. yours. You can create a new token under https://github.com/settings/tokens.
+In ioBroker Admin:
 
-1. Head over to [main.js](main.js) and start programming!
+1. `Adapter` öffnen
+2. GitHub-/Custom-Installation wählen
+3. Repository eintragen:
 
-### Best Practices
-We've collected some [best practices](https://github.com/ioBroker/ioBroker.repositories#development-and-coding-best-practices) regarding ioBroker development and coding in general. If you're new to ioBroker or Node.js, you should
-check them out. If you're already experienced, you should also take a look at them - you might learn something new :)
-
-### Scripts in `package.json`
-Several npm scripts are predefined for your convenience. You can run them using `npm run <scriptname>`
-| Script name | Description |
-|-------------|-------------|
-| `build` | Compile the React sources. |
-| `watch` | Compile the React sources and watch for changes. |
-| `test:js` | Executes the tests you defined in `*.test.js` files. |
-| `test:package` | Ensures your `package.json` and `io-package.json` are valid. |
-| `test:integration` | Tests the adapter startup with an actual instance of ioBroker. |
-| `test` | Performs a minimal test run on package files and your tests. |
-| `check` | Performs a type-check on your code (without compiling anything). |
-| `lint` | Runs `ESLint` to check your code for formatting errors and potential bugs. |
-| `translate` | Translates texts in your adapter to all required languages, see [`@iobroker/adapter-dev`](https://github.com/ioBroker/adapter-dev#manage-translations) for more details. |
-| `release` | Creates a new release, see [`@alcalzone/release-script`](https://github.com/AlCalzone/release-script#usage) for more details. |
-
-### Configuring the compilation
-The adapter template uses [esbuild](https://esbuild.github.io/) to compile TypeScript and/or React code. You can configure many compilation settings 
-either in `tsconfig.json` or by changing options for the build tasks. These options are described in detail in the
-[`@iobroker/adapter-dev` documentation](https://github.com/ioBroker/adapter-dev#compile-adapter-files).
-
-### Writing tests
-When done right, testing code is invaluable, because it gives you the 
-confidence to change your code while knowing exactly if and when 
-something breaks. A good read on the topic of test-driven development 
-is https://hackernoon.com/introduction-to-test-driven-development-tdd-61a13bc92d92. 
-Although writing tests before the code might seem strange at first, but it has very 
-clear upsides.
-
-The template provides you with basic tests for the adapter startup and package files.
-It is recommended that you add your own tests into the mix.
-
-### Publishing the adapter
-Using GitHub Actions, you can enable automatic releases on npm whenever you push a new git tag that matches the form 
-`v<major>.<minor>.<patch>`. We **strongly recommend** that you do. The necessary steps are described in `.github/workflows/test-and-release.yml`.
-
-Since you installed the release script, you can create a new
-release simply by calling:
-```bash
-npm run release
-```
-Additional command line options for the release script are explained in the
-[release-script documentation](https://github.com/AlCalzone/release-script#command-line).
-
-To get your adapter released in ioBroker, please refer to the documentation 
-of [ioBroker.repositories](https://github.com/ioBroker/ioBroker.repositories#requirements-for-adapter-to-get-added-to-the-latest-repository).
-
-### Test the adapter manually with dev-server
-Since you set up `dev-server`, you can use it to run, test and debug your adapter.
-
-You may start `dev-server` by calling from your dev directory:
-```bash
-dev-server watch
+```text
+https://github.com/DNAngelX/ioBroker.iOSAppAdapter
 ```
 
-The ioBroker.admin interface will then be available at http://localhost:8081/
+Alternativ auf dem ioBroker-Host:
 
-Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev-server#command-line) for more details.
+```bash
+iobroker url https://github.com/DNAngelX/ioBroker.iOSAppAdapter --host <host>
+```
+
+Danach eine Instanz `iobapp.0` anlegen oder neu starten.
+
+### iOS-App einrichten
+
+1. App `IoBroker Tools` installieren
+2. ioBroker-System hinzufügen
+3. Host, WebSocket-Port, Benutzer und Passwort eintragen
+4. Verbindung testen
+5. Sensoren, Standort, HealthKit, Watch und Indoor-Positionierung nach Bedarf aktivieren
+
+## Ports und Erreichbarkeit
+
+### WebSocket-Port
+
+Standard-Port des Adapters:
+
+```text
+9192/tcp
+```
+
+Dieser Port wird von der iOS-App für die direkte WebSocket-Verbindung zum Adapter genutzt.
+
+Empfehlung:
+
+- im Heimnetz direkt `http://<iobroker-ip>:9192` verwenden
+- außerhalb des Heimnetzes bevorzugt VPN, WireGuard, Tailscale oder Reverse Proxy nutzen
+- Port `9192` nicht ungeschützt dauerhaft ins Internet öffnen
+
+Wenn ein direkter Zugriff bewusst gewünscht ist, muss im Router eine TCP-Portfreigabe auf den ioBroker-Host eingerichtet werden:
+
+```text
+Extern: 9192/tcp -> ioBroker-IP:9192/tcp
+```
+
+### MyFRITZ!-DNS Beispiel
+
+Mit MyFRITZ! kann ein stabiler DNS-Name auf den Anschluss zeigen, z. B.:
+
+```text
+jan-smarthome.abc123.myfritz.net
+```
+
+Beispiel für direkten WebSocket-Zugriff:
+
+```text
+jan-smarthome.abc123.myfritz.net:9192
+```
+
+Sicherer ist ein Reverse Proxy mit TLS, z. B.:
+
+```text
+https://ios.example.myfritz.net
+```
+
+Der Proxy sollte dann nur die benötigten ioBroker-iOS-Endpunkte weiterleiten und TLS erzwingen.
+
+### Silent-Push-Relay
+
+Silent Push läuft nicht direkt über ioBroker zum iPhone. Apple verlangt APNs. Deshalb sendet der Adapter bei Bedarf an ein Relay, das APNs mit deinem Apple Developer Key anspricht.
+
+Standard in der Entwicklung:
+
+```text
+https://ios.stoll-mueller.de
+```
+
+Für einen eigenen Relay-Server muss nach außen normalerweise nur HTTPS freigegeben werden:
+
+```text
+443/tcp -> Relay-Server:443/tcp
+```
+
+Wenn NGINX oder ein anderer Reverse Proxy davor sitzt, bleibt der Node-/Relay-Port intern und wird nicht direkt veröffentlicht.
+
+## Adapter-Einstellungen
+
+- `Benutzername` / `Passwort`: einfache Adapter-Authentifizierung für die iOS-App
+- `WebSocket-Port`: Port für direkte App-Verbindungen, Standard `9192`
+- `Silent-Push-Relay aktivieren`: Fallback-Wake über APNs erlauben
+- `Relay-URL`: URL des Push-Relays, z. B. `https://ios.stoll-mueller.de`
+- `Relay API-Key`: Schlüssel, mit dem der Adapter beim Relay autorisiert wird
+- `Wake nach Minuten ohne Last Seen`: ab wann ein Gerät per Silent Push geweckt werden soll
+- `Minimaler Abstand zwischen Wake-Pushes`: Schutz gegen Push-Spam
+- `Indoor-Positionierung`: BLE-Scans, Lernphase, Mindest-Konfidenz und Presence-Timeout
+
+## ioBroker-Objekte
+
+Typische Struktur:
+
+```text
+iobapp.0.person.<Person>.<Device>.sensors.*
+iobapp.0.person.<Person>.<Device>.location.*
+iobapp.0.person.<Person>.<Device>.diagnostics.*
+iobapp.0.person.<Person>.<Device>.indoor.*
+iobapp.0.indoor.areas.*
+iobapp.0.indoor.beacons.*
+iobapp.0.messages.*
+```
+
+Wichtige Diagnosewerte:
+
+- `sensors.last_seen`
+- `diagnostics.last_flush`
+- `diagnostics.last_ack`
+- `diagnostics.last_trigger`
+- `indoor.last_scan`
+- `indoor.beacon_count`
+- `indoor.current_area`
+- `indoor.confidence`
+
+## Indoor-Positionierung
+
+Indoor-Positionierung basiert auf BLE-/iBeacon-Signalen, nicht auf WLAN-BSSID. iOS gibt BSSID/MAC-Adressen aus Datenschutzgründen nicht zuverlässig frei.
+
+Vorgehen:
+
+1. Indoor in App und Adapter aktivieren
+2. Räume/Areas in ioBroker oder in der App auswählen bzw. benennen
+3. Lernphase starten und die relevante Area 10-30 Sekunden ablaufen
+4. Im Indoor-Dashboard feste Beacons als `fixed`, mobile Geräte als `mobile` und Störquellen als `ignored` klassifizieren
+5. Area-Kandidaten in der App prüfen und bei Bedarf pro Area Beacons ein- oder ausschließen
+
+Hinweis: anonyme BLE-Geräte ohne stabilen Namen können ihre iOS-Identifier ändern. Die App filtert generische `Peripheral`-Einträge deshalb aus Indoor-Fingerprints heraus.
+
+## Sicherheit und Datenschutz
+
+- Standort, HealthKit und Indoor-Positionierung sind opt-in.
+- HealthKit-Daten werden nur gelesen, wenn der Nutzer sie in iOS freigibt.
+- APNs-Schlüssel gehören nicht in Community-ioBroker-Installationen. Für produktive Installationen sollte ein Relay genutzt werden.
+- Öffentliche Portfreigaben sollten auf HTTPS/VPN/Reverse Proxy begrenzt werden.
+
+## Entwicklung
+
+```bash
+npm install
+npm run build
+npm test
+```
+
+Für lokale Tests kann der Adapter per GitHub-URL oder lokalem Paket in ioBroker installiert werden.
 
 ## Changelog
-<!--
-	Placeholder for the next version (at the beginning of the line):
-	### **WORK IN PROGRESS**
--->
+
+### 0.3.0 (2026-07-19)
+
+- README und Projektbeschreibung für öffentliche Tests überarbeitet
+- Adapter-Metadaten auf das aktuelle GitHub-Repository korrigiert
+- Indoor-/Silent-Push-/Port-Dokumentation ergänzt
+
+### 0.2.15 (2026-07-13)
+
+- Area-spezifische Include- und Exclude-Modi für Indoor-Beacons ergänzt
+
+### 0.2.14 (2026-07-13)
+
+- Indoor-Kandidaten um Beacon-Match-Details und App-gesteuerte Beacon-Klassifizierung ergänzt
+
+### 0.2.13 (2026-07-13)
+
+- Indoor-Area-Kandidaten zurückgeben und leere manuelle Lernscans akzeptieren
+
+### 0.2.12 (2026-07-13)
+
+- Indoor-Dashboard zeigt nur direkte Area-Kanäle als Areas an
+
+### 0.2.11 (2026-07-13)
+
+- Indoor-Area-Belegung ergänzt und falsche Indoor-Treffer durch Fingerprint-Abdeckungswertung reduziert
+
+### 0.2.10 (2026-07-13)
+
+- Indoor-Dashboard-Listen für Geräte, Areas, Area-Details und Beacons separat scrollbar gemacht
+
+### 0.2.9 (2026-07-13)
+
+- Indoor-Admin-Tab korrekt registriert und ioBroker-Räume über schnellen Enum-View-Fallback geladen
+
+### 0.2.8 (2026-07-13)
+
+- Indoor-Area- und Beacon-Verwaltung mit Fallback auf gelernte Areas für die iOS-App ergänzt
+
+### 0.2.7 (2026-07-13)
+
+- Scrollbarkeit der Settings-Seite und Label-Kontrast im Dark Theme korrigiert
+
+### 0.2.6 (2026-07-13)
+
+- Admin-UI-Start mit dem Materialize-GenericApp-Translation-Set korrigiert
+
+### 0.2.5 (2026-07-13)
+
+- Materialize-Settings-UI korrigiert und ioBroker-Admin-Tab für Indoor-Positionierung ergänzt
+
+### 0.2.4 (2026-07-12)
+
+- Indoor-Positionierung mit BLE-Beacon-Scans, Raum-Lernen und zentralen Area-Fingerprints ergänzt
+
+### 0.2.3 (2026-07-12)
+
+- Nachrichtentypen ergänzt und NFC-Tag-Routing verbessert
+
+### 0.2.2 (2026-07-12)
+
+- Nachrichten-Routing für Personen und globale Nachrichten korrigiert
+
 ### 0.2.1 (2024-07-19)
-* (DNAngelX) UI Fix
+
+- UI-Fix
 
 ### 0.2.0 (2024-07-19)
-* (DNAngelX) Change Rest 2 Websockets
-* Improvements in Cache Messages etc.
+
+- Umstellung von REST auf WebSocket
+- Verbesserungen im Nachrichten-Cache
 
 ### 0.1.0 (2024-07-07)
-* (DNAngelX) Apple Push Service APN added
+
+- Apple Push Service/APNs ergänzt
 
 ### 0.0.6 (2024-07-06)
-* (DNAngelX) integration checks: true
+
+- Integrationsprüfungen ergänzt
 
 ### 0.0.5 (2024-07-06)
-* (DNAngelX) bugfix ws
+
+- WebSocket-Bugfix
 
 ### 0.0.3 (2024-07-06)
-* (DNAngelX) bugfix ports
+
+- Port-Bugfix
 
 ### 0.0.2 (2024-07-01)
-* (DNAngelX) initial release
+
+- Initiale Version
 
 ## License
+
 MIT License
 
 Copyright (c) 2024 DNAngelX <stolly82@web.de>
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.

@@ -1,7 +1,7 @@
 {
   "name": "iobroker.iobapp",
-  "version": "0.2.15",
-  "description": "This adapter integrates an iOS app with IoBroker, providing REST endpoints for device data.",
+  "version": "0.3.0",
+  "description": "ioBroker adapter for the IoBroker Tools iOS/watchOS app with sensors, location, notifications, Silent Push and indoor positioning.",
   "author": {
     "name": "DNAngelX",
     "email": "stolly82@web.de"
@@ -11,18 +11,24 @@
       "name": "DNAngelX"
     }
   ],
-  "homepage": "https://github.com/DNAngelX/ioBroker.iobapp",
+  "homepage": "https://github.com/DNAngelX/ioBroker.iOSAppAdapter",
   "license": "MIT",
   "keywords": [
     "ios",
     "ipad",
     "iphone",
-    "tracking",
-    "loction"
+    "watchos",
+    "apple-watch",
+    "location",
+    "presence",
+    "healthkit",
+    "push",
+    "indoor-positioning",
+    "ibeacon"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/DNAngelX/ioBroker.iobapp.git"
+    "url": "https://github.com/DNAngelX/ioBroker.iOSAppAdapter.git"
   },
   "engines": {
     "node": ">= 18"
@@ -88,7 +94,7 @@
     "release": "release-script"
   },
   "bugs": {
-    "url": "https://github.com/DNAngelX/ioBroker.iobapp/issues"
+    "url": "https://github.com/DNAngelX/ioBroker.iOSAppAdapter/issues"
   },
   "readmeFilename": "README.md"
 }

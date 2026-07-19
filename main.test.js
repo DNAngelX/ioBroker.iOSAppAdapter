@@ -445,6 +445,38 @@ describe("Protocol v2 WebSocket contract", () => {
 		expect(socket.sent[0]).to.deep.include({ action: "indoorBeaconScan", success: true });
 	});
 
+	it("filters generic Peripheral beacons before storing indoor scans", async () => {
+		const adapter = makeAdapter();
+		const objects = [];
+		const states = [];
+		adapter.setObjectNotExistsAsync = async (id, object) => objects.push({ id, object });
+		adapter.setStateAsync = async (id, val, ack) => states.push({ id, val, ack });
+		adapter.getStatesAsync = async () => ({});
+		const socket = makeSocket();
+
+		await adapter.handleIndoorBeaconScan(socket, {
+			person: "Jan",
+			device: "iPhone",
+			trigger: "learning",
+			timestamp: "2026-07-19T20:00:00.000Z",
+			learningAreaId: "office",
+			learningAreaName: "Office",
+			beacons: [
+				{ id: "peripheral-abc", name: "Peripheral", localName: "", rssi: -42 },
+				{ id: "peripheral-def", name: " peripheral ", localName: "--", rssi: -40 },
+				{ id: "shelly-office", name: "Shelly Office", localName: "Shelly Office", rssi: -50 },
+			],
+		});
+
+		expect(objects.map(entry => entry.id)).to.not.include("iobapp.0.indoor.beacons.peripheral-abc");
+		expect(objects.map(entry => entry.id)).to.not.include("iobapp.0.indoor.beacons.peripheral-def");
+		expect(objects.map(entry => entry.id)).to.include("iobapp.0.indoor.beacons.shelly-office");
+		expect(states).to.deep.include({ id: "iobapp.0.person.Jan.iPhone.indoor.beacon_count", val: 1, ack: true });
+		const fingerprintWrite = states.find(entry => entry.id === "iobapp.0.indoor.areas.office.fingerprint_json");
+		const fingerprint = JSON.parse(fingerprintWrite.val);
+		expect(fingerprint.beacons.map(beacon => beacon.id)).to.deep.equal(["shelly-office"]);
+	});
+
 	it("does not keep an indoor area when only a small fingerprint fraction matches", async () => {
 		const adapter = makeAdapter();
 		const states = [];
